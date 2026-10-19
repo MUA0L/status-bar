@@ -6,7 +6,7 @@
     "js": "index.js",
     "css": "style.css",
     "author": "MUA0L",
-    "version": "1.2.3",
+    "version": "1.3.0",
     "auto_update": false,
     "minimum_client_version": "1.13.0",
     "homePage": "https://github.com/MUA0L/status-bar"
