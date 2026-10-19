@@ -1,0 +1,1041 @@
+/* ============================================================
+   状态栏 (Status Bar) — 样式
+   位置：data/default-user/extensions/status-bar/style.css
+
+   设计原则：
+     1. 取色全部来自 SillyTavern 主题变量，深浅主题都能自动适配
+     2. 不用阴影、不用渐变，只用 1px 细线分隔
+     3. 圆角克制，与 ST 原生控件保持同一语汇
+
+   两个形态：
+     .sb-inline  消息末尾的简洁条
+     #sb-float   输入框上方的固定面板
+   ============================================================ */
+
+#sb-float,
+#sb-ball,
+.sb-inline,
+.sb-settings {
+    --sb-bg: var(--SmartThemeBotMesBlurTintColor, var(--SmartThemeBlurTintColor, #1e1e1e));
+    --sb-panel: var(--SmartThemeBlurTintColor, #171717);
+    --sb-text: var(--SmartThemeBodyColor, #dcdcd2);
+    --sb-dim: var(--SmartThemeEmColor, #919191);
+    --sb-line: var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.12));
+    --sb-accent: var(--SmartThemeUnderlineColor, var(--SmartThemeQuoteColor, #6ea8fe));
+    --sb-radius: 6px;
+    --sb-dur: 0.12s;
+}
+
+/* 数字统一等宽，避免每帧跳动 */
+.sb-num {
+    font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------
+   一、消息末尾的简洁条
+   ------------------------------------------------------------ */
+
+.sb-inline {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--sb-line);
+    font-size: 0.84em;
+    line-height: 1.45;
+    color: var(--sb-dim);
+    cursor: pointer;
+    user-select: none;
+    transition: opacity var(--sb-dur) ease;
+}
+
+/* 一个角色一行 */
+.sb-inline-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+}
+
+.sb-inline-name {
+    flex: 0 0 auto;
+    font-size: 0.94em;
+    font-weight: 600;
+    opacity: 0.8;
+    margin-right: 1px;
+}
+
+.sb-inline:hover {
+    opacity: 0.82;
+}
+
+/* 简洁条上的单个字段 */
+.sb-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 100%;
+    padding: 1px 7px;
+    border-radius: 5px;
+    background: rgba(128, 128, 128, 0.1);
+    white-space: nowrap;
+}
+
+.sb-chip i {
+    font-size: 0.92em;
+    opacity: 0.72;
+}
+
+.sb-chip-key {
+    opacity: 0.68;
+    font-size: 0.94em;
+}
+
+.sb-chip-val {
+    color: var(--sb-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 简洁条里的迷你进度条 */
+.sb-mini {
+    display: inline-block;
+    width: 34px;
+    height: 3px;
+    border-radius: 2px;
+    background: rgba(128, 128, 128, 0.26);
+    overflow: hidden;
+    flex: 0 0 auto;
+}
+
+.sb-mini-fill {
+    display: block;
+    height: 100%;
+    border-radius: 2px;
+    background: var(--sb-accent);
+    transition: width var(--sb-dur) ease, background-color var(--sb-dur) ease;
+}
+
+.sb-mini-fill.is-low {
+    background: #d3695c;
+}
+
+.sb-mini-fill.is-high {
+    background: color-mix(in srgb, var(--sb-accent) 78%, #ffffff);
+}
+
+/* ------------------------------------------------------------
+   二、悬浮球 + 悬浮窗
+   ------------------------------------------------------------ */
+
+/* 圆球：常驻右下角，点一下开关悬浮窗。
+   位置刻意抬到输入区上方 —— 窄屏下 ST 会把发送按钮挪到输入框右下，
+   bottom 太小会和它打架。 */
+#sb-ball {
+    position: fixed;
+    right: 18px;
+    bottom: 150px;
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid var(--sb-line);
+    border-radius: 50%;
+    background: var(--sb-bg);
+    color: var(--sb-text);
+    font-size: 18px;
+    line-height: 1;
+    cursor: grab;
+    touch-action: none;
+    z-index: 30001;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: transform var(--sb-dur) ease, background var(--sb-dur) ease, color var(--sb-dur) ease;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+#sb-ball[hidden] {
+    display: none !important;
+}
+
+#sb-ball:hover {
+    transform: scale(1.07);
+}
+
+#sb-ball:active {
+    transform: scale(0.96);
+}
+
+/* 拖动中：不缩放、不动画，避免手感和视觉打架 */
+#sb-ball.sb-ball-dragging {
+    transition: none;
+    cursor: grabbing;
+    transform: none;
+}
+
+#sb-ball:focus-visible {
+    outline: 2px solid var(--sb-accent);
+    outline-offset: 2px;
+}
+
+/* 窗口打开时球变成实心强调色，一眼能看出状态 */
+#sb-ball.sb-ball-active {
+    background: var(--sb-accent);
+    border-color: transparent;
+    color: #14161a;
+}
+
+/* 有未读（新状态到达）时的小圆点 */
+#sb-ball.sb-ball-dot::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #ff6b6b;
+    border: 2px solid var(--sb-bg);
+}
+
+#sb-float {
+    position: fixed;
+    right: 18px;
+    bottom: 204px;
+    width: 300px;
+    max-width: calc(100vw - 24px);
+    margin: 0;
+    border: 1px solid var(--sb-line);
+    border-radius: 10px;
+    background: var(--sb-bg);
+    color: var(--sb-text);
+    font-size: 0.9em;
+    overflow: hidden;
+    z-index: 30000;
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: box-shadow var(--sb-dur) ease;
+}
+
+#sb-float[hidden] {
+    display: none !important;
+}
+
+/* 拖动中：禁用过渡与选中，避免拖影 */
+#sb-float.sb-dragging {
+    transition: none;
+    user-select: none;
+}
+
+#sb-float.sb-dragging .sb-float-head {
+    cursor: grabbing;
+}
+
+/* 回看历史快照时用强调色描边 */
+#sb-float.sb-history {
+    border-color: var(--sb-accent);
+}
+
+/* 头部：拖动把手 + 摘要 + 回看角标 + 折叠按钮 */
+.sb-float-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 34px;
+    padding: 0 8px 0 10px;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+}
+
+.sb-float-title {
+    flex: 0 0 auto;
+    font-size: 0.72em;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    opacity: 0.5;
+}
+
+.sb-float-badge {
+    flex: 0 0 auto;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(128, 128, 128, 0.18);
+    color: var(--sb-accent);
+    font-size: 0.76em;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.sb-float-tools {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 2px;
+}
+
+.sb-tool {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+    opacity: 0.55;
+    font-size: 0.84em;
+    cursor: pointer;
+    transition: background var(--sb-dur) ease, opacity var(--sb-dur) ease;
+}
+
+.sb-tool:hover {
+    background: rgba(128, 128, 128, 0.2);
+    opacity: 1;
+}
+
+.sb-tool:focus-visible {
+    outline: 1px solid var(--sb-accent);
+    outline-offset: 1px;
+}
+
+/* 角色标签：多人时显示在头部下方，点名字看单人 */
+.sb-char-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    padding: 6px 6px 0;
+    border-top: 1px solid var(--sb-line);
+}
+
+.sb-char-tabs[hidden] {
+    display: none !important;
+}
+
+.sb-char-tab {
+    padding: 2px 9px;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    background: transparent;
+    color: inherit;
+    font-size: 0.78em;
+    line-height: 1.6;
+    cursor: pointer;
+    opacity: 0.62;
+    transition: background var(--sb-dur) ease, opacity var(--sb-dur) ease;
+}
+
+.sb-char-tab:hover {
+    background: rgba(128, 128, 128, 0.16);
+    opacity: 0.9;
+}
+
+.sb-char-tab.is-active {
+    border-color: var(--sb-accent);
+    color: var(--sb-accent);
+    opacity: 1;
+}
+
+/* 主体：按角色分组的字段网格。
+   分隔线用 item 自身的 1px 外描边，而不是 gap + 底色 ——
+   后者在字段没填满最后一行时，空出来的格子会露出线的底色。 */
+.sb-float-body {
+    display: block;
+    border-top: 1px solid var(--sb-line);
+    background: var(--sb-bg);
+    max-height: 46vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+/* 单个角色一组：名字条 + 字段网格 */
+.sb-char-group + .sb-char-group {
+    border-top: 1px solid var(--sb-line);
+}
+
+.sb-char-head {
+    padding: 6px 10px 5px;
+    background: color-mix(in srgb, var(--sb-bg) 90%, var(--sb-text));
+    font-size: 0.74em;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    opacity: 0.7;
+}
+
+.sb-char-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+    gap: 0;
+}
+
+/* 折叠时看摘要，展开时摘要让位给完整字段 */
+/* 历史快照菜单：浮在头部下方。
+   #sb-float 本身是 fixed 定位，absolute 子元素相对它定位，无需额外锚点。 */
+.sb-history-menu {
+    position: absolute;
+    top: 37px;
+    left: 6px;
+    right: 6px;
+    max-height: 250px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 1px solid var(--sb-line);
+    border-radius: 8px;
+    background: var(--sb-panel);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.32);
+    z-index: 3;
+}
+
+/* 编辑模式：字段编辑器就长在悬浮窗里 */
+.sb-float-editor {
+    padding: 10px;
+    border-top: 1px solid var(--sb-line);
+    max-height: 56vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.sb-float-editor .sb-hint {
+    margin: 0 0 8px;
+}
+
+.sb-editor-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--sb-line);
+}
+
+#sb-float.sb-editing .sb-float-body {
+    display: none;
+}
+
+#sb-float.sb-editing .sb-history-menu {
+    display: none;
+}
+
+.sb-float-editor[hidden] {
+    display: none !important;
+}
+
+/* 图标选择器：浮在编辑器上方的网格 */
+.sb-icon-picker {
+    position: absolute;
+    top: 37px;
+    left: 6px;
+    right: 6px;
+    max-height: 300px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 6px;
+    border: 1px solid var(--sb-line);
+    border-radius: 8px;
+    background: var(--sb-panel);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.32);
+    z-index: 4;
+}
+
+.sb-icon-picker[hidden] {
+    display: none !important;
+}
+
+/* 分组：标题滚动时吸顶，翻长列表也能知道在哪一组 */
+.sb-icon-group + .sb-icon-group {
+    margin-top: 9px;
+}
+
+.sb-icon-group-title {
+    position: sticky;
+    top: -6px;
+    z-index: 1;
+    margin-bottom: 4px;
+    padding: 3px 0 2px;
+    background: var(--sb-panel);
+    font-size: 0.72em;
+    opacity: 0.55;
+    letter-spacing: 0.04em;
+}
+
+.sb-icon-grid-inner {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+    gap: 3px;
+}
+
+.sb-icon-cell {
+    display: grid;
+    place-items: center;
+    height: 34px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: inherit;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background var(--sb-dur) ease;
+}
+
+.sb-icon-cell:hover {
+    background: rgba(128, 128, 128, 0.2);
+}
+
+.sb-icon-cell.is-active {
+    border-color: var(--sb-accent);
+    color: var(--sb-accent);
+}
+
+.sb-icon-none {
+    font-size: 13px;
+    opacity: 0.6;
+}
+
+/* 字段行里的图标预览按钮 */
+.sb-icon-pick {
+    width: 26px;
+    height: 24px;
+    padding: 0;
+    font-size: 12px;
+}
+
+.sb-history-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    font-size: 0.86em;
+    line-height: 1.4;
+    cursor: pointer;
+}
+
+.sb-history-item:hover {
+    background: rgba(128, 128, 128, 0.15);
+}
+
+.sb-history-item.is-active {
+    color: var(--sb-accent);
+}
+
+.sb-history-item.is-active .sb-history-num {
+    opacity: 1;
+}
+
+.sb-history-num {
+    flex: 0 0 auto;
+    opacity: 0.5;
+}
+
+.sb-history-sum {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.sb-history-empty {
+    padding: 12px;
+    font-size: 0.84em;
+    opacity: 0.55;
+    text-align: center;
+}
+
+.sb-item {
+    min-width: 0;
+    padding: 7px 10px;
+    background: var(--sb-bg);
+    box-shadow: 1px 0 0 var(--sb-line), 0 1px 0 var(--sb-line);
+    transition: background var(--sb-dur) ease;
+}
+
+.sb-item:hover {
+    background: color-mix(in srgb, var(--sb-bg) 88%, var(--sb-text));
+}
+
+.sb-item-label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.74em;
+    letter-spacing: 0.02em;
+    opacity: 0.55;
+    line-height: 1.4;
+}
+
+.sb-item-label i {
+    font-size: 0.94em;
+    opacity: 0.9;
+}
+
+.sb-item-value {
+    margin-top: 3px;
+    font-size: 1em;
+    font-weight: 500;
+    color: var(--sb-text);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.sb-item--empty {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 6px;
+    grid-column: 1 / -1;
+    opacity: 0.55;
+    font-size: 0.84em;
+    line-height: 1.6;
+}
+
+.sb-item--empty i {
+    font-size: 1.1em;
+    opacity: 0.8;
+}
+
+/* 完整进度条 */
+.sb-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.sb-bar-track {
+    position: relative;
+    flex: 1 1 auto;
+    height: 5px;
+    border-radius: 3px;
+    background: rgba(128, 128, 128, 0.26);
+    overflow: hidden;
+}
+
+/* 渐变 + 内高光，让细条也有体积感 */
+.sb-bar-fill {
+    display: block;
+    height: 100%;
+    border-radius: 3px;
+    background-image: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--sb-accent) 62%, transparent),
+        var(--sb-accent)
+    );
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    transition: width var(--sb-dur) ease, background-image var(--sb-dur) ease;
+}
+
+/* 低值告警：数值快见底时换成暖红，扫一眼就知道要补 */
+.sb-bar-fill.is-low {
+    background-image: linear-gradient(90deg, #c0564a, #e5897c);
+}
+
+/* 高值：拉满时更亮一档 */
+.sb-bar-fill.is-high {
+    background-image: linear-gradient(
+        90deg,
+        var(--sb-accent),
+        color-mix(in srgb, var(--sb-accent) 70%, #ffffff)
+    );
+}
+
+.sb-bar-num {
+    flex: 0 0 auto;
+    font-size: 0.9em;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.sb-bar-max {
+    margin-left: 1px;
+    opacity: 0.42;
+    font-size: 0.86em;
+    font-weight: 400;
+}
+
+/* 标签组 */
+.sb-tag {
+    display: inline-block;
+    margin: 1px 4px 1px 0;
+    padding: 0 6px;
+    border-radius: 4px;
+    background: rgba(128, 128, 128, 0.18);
+    font-size: 0.86em;
+    line-height: 1.7;
+}
+
+/* 紧凑密度：写长剧情时省一行高度 */
+#sb-float.sb-compact .sb-item {
+    padding: 5px 9px;
+}
+
+#sb-float.sb-compact .sb-float-head {
+    min-height: 30px;
+}
+
+/* ------------------------------------------------------------
+   三、扩展设置面板
+   ------------------------------------------------------------ */
+
+.sb-settings .inline-drawer-content {
+    display: none;
+    padding-top: 8px;
+}
+
+.sb-settings.sb-open .inline-drawer-content {
+    display: block;
+}
+
+/* 从悬浮窗跳转过来时闪一下，帮用户定位 */
+.sb-settings.sb-flash {
+    animation: sb-flash 1.5s ease;
+}
+
+@keyframes sb-flash {
+    0%,
+    100% {
+        background: transparent;
+    }
+
+    18%,
+    58% {
+        background: rgba(128, 128, 128, 0.14);
+    }
+}
+
+.sb-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    margin-bottom: 8px;
+}
+
+.sb-hint {
+    margin: 4px 0 8px;
+    font-size: 0.8em;
+    line-height: 1.6;
+    opacity: 0.62;
+}
+
+.sb-hint code {
+    padding: 0 4px;
+    border-radius: 3px;
+    background: rgba(128, 128, 128, 0.2);
+    font-size: 0.95em;
+}
+
+.sb-sublabel {
+    display: block;
+    margin: 10px 0 4px;
+    font-size: 0.82em;
+    font-weight: 600;
+    opacity: 0.8;
+}
+
+/* 通用控件 */
+.sb-inp {
+    min-width: 0;
+    height: 25px;
+    padding: 0 7px;
+    border: 1px solid var(--sb-line);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--sb-text);
+    font-size: 0.84em;
+    outline: none;
+    transition: border-color var(--sb-dur) ease;
+}
+
+.sb-inp:focus {
+    border-color: var(--sb-accent);
+}
+
+select.sb-inp {
+    padding-right: 4px;
+    cursor: pointer;
+}
+
+.sb-btn {
+    height: 26px;
+    padding: 0 10px;
+    border: 1px solid var(--sb-line);
+    border-radius: var(--sb-radius);
+    background: rgba(128, 128, 128, 0.12);
+    color: var(--sb-text);
+    font-size: 0.82em;
+    cursor: pointer;
+    transition: background var(--sb-dur) ease;
+}
+
+.sb-btn:hover {
+    background: rgba(128, 128, 128, 0.24);
+}
+
+.sb-btn--primary {
+    border-color: transparent;
+    background: var(--sb-accent);
+    color: #111;
+    font-weight: 600;
+}
+
+.sb-btn--primary:hover {
+    filter: brightness(1.08);
+}
+
+.sb-btn--danger:hover {
+    color: #ff8b8b;
+}
+
+.sb-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+/* 方案按钮：整套字段一键套用 */
+.sb-templates {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 7px;
+}
+
+.sb-tpl {
+    padding: 3px 10px;
+    border: 1px solid var(--sb-line);
+    border-radius: 5px;
+    background: rgba(128, 128, 128, 0.08);
+    color: inherit;
+    font-size: 0.78em;
+    line-height: 1.6;
+    cursor: pointer;
+    transition: background var(--sb-dur) ease, border-color var(--sb-dur) ease;
+}
+
+.sb-tpl:hover {
+    background: rgba(128, 128, 128, 0.2);
+    border-color: var(--sb-accent);
+}
+
+/* 常用字段快选 */
+.sb-quick {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.sb-chipbtn {
+    padding: 2px 9px;
+    border: 1px solid var(--sb-line);
+    border-radius: 12px;
+    background: transparent;
+    color: inherit;
+    font-size: 0.78em;
+    line-height: 1.7;
+    cursor: pointer;
+    transition: background var(--sb-dur) ease;
+}
+
+.sb-chipbtn:hover:not(:disabled) {
+    background: rgba(128, 128, 128, 0.2);
+}
+
+.sb-chipbtn:disabled {
+    opacity: 0.38;
+    cursor: default;
+}
+
+/* 字段卡片 */
+.sb-field-row {
+    margin-bottom: 6px;
+    padding: 7px 8px;
+    border: 1px solid var(--sb-line);
+    border-radius: var(--sb-radius);
+}
+
+.sb-field-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+}
+
+/* 主行：显示名占满剩余空间，类型固定宽度 */
+.sb-field-row .sb-label {
+    flex: 1 1 auto;
+    min-width: 92px;
+}
+
+.sb-field-row .sb-type {
+    flex: 0 0 84px;
+}
+
+/* 高级项：默认收起，点 ⋯ 展开 */
+.sb-field-advanced {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed var(--sb-line);
+}
+
+.sb-field-advanced[hidden] {
+    display: none;
+}
+
+.sb-adv-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.76em;
+    opacity: 0.8;
+    white-space: nowrap;
+}
+
+.sb-adv-item .sb-key {
+    width: 88px;
+    font-family: ui-monospace, Consolas, monospace;
+}
+
+.sb-adv-item .sb-max {
+    width: 56px;
+}
+
+.sb-adv-item .sb-dynamic {
+    width: 88px;
+}
+
+.sb-adv-item .sb-icon {
+    width: 136px;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 0.94em;
+}
+
+.sb-row-tools {
+    display: flex;
+    gap: 2px;
+    margin-left: auto;
+}
+
+.sb-row-tools .sb-btn {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    font-size: 0.78em;
+}
+
+.sb-chk {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.8em;
+    opacity: 0.85;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.sb-chk input {
+    margin: 0;
+    cursor: pointer;
+    accent-color: var(--sb-accent);
+}
+
+.sb-chk--block {
+    display: flex;
+    margin-bottom: 6px;
+    font-size: 0.86em;
+}
+
+/* 提示词编辑器 */
+#sb-prompt {
+    width: 100%;
+    min-height: 132px;
+    padding: 8px;
+    border: 1px solid var(--sb-line);
+    border-radius: var(--sb-radius);
+    background: transparent;
+    color: var(--sb-text);
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 0.78em;
+    line-height: 1.6;
+    resize: vertical;
+    outline: none;
+}
+
+#sb-prompt:focus {
+    border-color: var(--sb-accent);
+}
+
+/* 导入 / 导出区 */
+.sb-transfer {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--sb-line);
+}
+
+#sb-import-text {
+    width: 100%;
+    min-height: 82px;
+    padding: 8px;
+    border: 1px solid var(--sb-line);
+    border-radius: var(--sb-radius);
+    background: transparent;
+    color: var(--sb-text);
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 0.76em;
+    line-height: 1.55;
+    resize: vertical;
+    outline: none;
+}
+
+#sb-import-text:focus {
+    border-color: var(--sb-accent);
+}
+
+/* 手机 / 窄屏 */
+@media (max-width: 1000px) {
+    #sb-ball {
+        width: 40px;
+        height: 40px;
+        right: 12px;
+        bottom: 140px;
+        font-size: 16px;
+    }
+
+    #sb-float {
+        width: 268px;
+        right: 12px;
+        bottom: 190px;
+    }
+
+    .sb-float-body {
+        max-height: 40vh;
+    }
+
+    .sb-char-grid {
+        grid-template-columns: repeat(auto-fill, minmax(102px, 1fr));
+    }
+
+    /* 手机上标题占地方，摘要更实用 */
+    .sb-float-title {
+        display: none;
+    }
+
+    .sb-inline {
+        font-size: 0.8em;
+        gap: 4px;
+    }
+
+    /* 手机上按钮加大，避免误触 */
+    .sb-btn {
+        height: 30px;
+        padding: 0 12px;
+    }
+}

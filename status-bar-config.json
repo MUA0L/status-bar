@@ -1,0 +1,86 @@
+{
+  "$format": "sillytavern.status-bar",
+  "$version": 1,
+  "$note": "SillyTavern 状态栏配置：字段定义 + 提示词 + 注入与显示设置，不含任何聊天记录。手机端把整段 JSON 粘进「状态栏」扩展设置里的导入框，点「从文本导入」即可完整还原。字段可自由增删改，type 支持 text / number / bar / tags；没在 fields 里出现的键也会自动显示。",
+  "name": "默认状态栏",
+  "fields": [
+    {
+      "key": "time",
+      "label": "时间",
+      "type": "text",
+      "icon": "fa-regular fa-clock",
+      "max": 100,
+      "inline": true
+    },
+    {
+      "key": "location",
+      "label": "地点",
+      "type": "text",
+      "icon": "fa-solid fa-location-dot",
+      "max": 100,
+      "inline": true
+    },
+    {
+      "key": "mood",
+      "label": "心情",
+      "type": "text",
+      "icon": "fa-regular fa-face-smile",
+      "max": 100,
+      "inline": true
+    },
+    {
+      "key": "affection",
+      "label": "好感",
+      "type": "bar",
+      "icon": "fa-solid fa-heart",
+      "max": 100,
+      "inline": true
+    },
+    {
+      "key": "date",
+      "label": "日期",
+      "type": "text",
+      "icon": "fa-regular fa-calendar",
+      "max": 100,
+      "inline": false
+    },
+    {
+      "key": "weather",
+      "label": "天气",
+      "type": "text",
+      "icon": "fa-solid fa-cloud-sun",
+      "max": 100,
+      "inline": false
+    },
+    {
+      "key": "relation",
+      "label": "关系",
+      "type": "text",
+      "icon": "fa-solid fa-link",
+      "max": 100,
+      "inline": false
+    },
+    {
+      "key": "outfit",
+      "label": "服装",
+      "type": "text",
+      "icon": "fa-solid fa-shirt",
+      "max": 100,
+      "inline": false
+    }
+  ],
+  "prompt": "[状态栏要求]\n每次回复正文结束后，另起一行输出一个 <status> 区块，记录该时刻的场景状态。\n\n格式：\n<status>\n{{example}}\n</status>\n\n字段（全部必填）：\n{{fields}}\n\n硬性要求：\n1. 整条回复只输出一次该区块，紧跟在正文末尾；\n2. 区块内只有一段合法 JSON，不要加注释、代码块围栏或任何解释文字；\n3. 数值字段输出纯数字，不要带 % 或其它单位；\n4. 字段值用简短词组，不要写成句子；\n5. 不要在正文里用自然语言复述状态栏的内容。",
+  "inject": {
+    "depth": 1,
+    "role": 0,
+    "strip": true
+  },
+  "display": {
+    "showInline": true,
+    "inlineLatestOnly": true,
+    "showFloat": true,
+    "ballIcon": "fa-solid fa-chart-simple",
+    "accent": "",
+    "density": "normal"
+  }
+}
