@@ -1313,12 +1313,12 @@ function applyBallPosition() {
     if (positionFitsViewport(pos)) {
         setBallPosition(Number(pos.left), Number(pos.top));
         clampAboveInput();
-    } else {
-        ball.style.left = '';
-        ball.style.top = '';
-        ball.style.right = '';
-        ball.style.bottom = '';
+        return;
     }
+
+    // 默认位置：屏幕正中。没有保存过坐标、或坐标已失效时都落在这里。
+    const size = ball.offsetWidth || 44;
+    setBallPosition((window.innerWidth - size) / 2, (window.innerHeight - size) / 2);
 }
 
 /**
