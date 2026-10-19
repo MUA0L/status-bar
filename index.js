@@ -1185,7 +1185,7 @@ function bindBallDrag(ball) {
 
         // 窗口还跟着球的话，跟着一起挪，避免拖到一半两者分家
         const s = settings();
-        if (s.display.floatOpen && !s.display.floatPos) {
+        if (s.display.floatOpen && !positionFitsViewport(s.display.floatPos)) {
             windowAnchorToBall();
         }
     });
@@ -1281,6 +1281,27 @@ function clampAboveInput() {
 }
 
 /** 按保存的坐标摆放球；没有坐标就交给 CSS 的 right/bottom */
+/**
+ * 坐标是否还落在当前视口里。
+ *
+ * 从别的设备同步过来的配置（PC 的坐标搬到手机上）常常超出屏幕，
+ * 那种情况直接当无效处理，回到默认位置，免得球半截露在外面。
+ */
+function positionFitsViewport(pos) {
+    if (!pos || typeof pos !== 'object') {
+        return false;
+    }
+
+    const left = Number(pos.left);
+    const top = Number(pos.top);
+
+    if (!Number.isFinite(left) || !Number.isFinite(top)) {
+        return false;
+    }
+
+    return left >= 0 && top >= 0 && left < window.innerWidth - 20 && top < window.innerHeight - 20;
+}
+
 function applyBallPosition() {
     const ball = ballElement();
     if (!ball) {
@@ -1289,7 +1310,7 @@ function applyBallPosition() {
 
     const pos = settings().display.ballPos;
 
-    if (pos && Number.isFinite(Number(pos.left)) && Number.isFinite(Number(pos.top))) {
+    if (positionFitsViewport(pos)) {
         setBallPosition(Number(pos.left), Number(pos.top));
         clampAboveInput();
     } else {
@@ -1637,7 +1658,7 @@ function applyFloatPosition() {
 
     const pos = settings().display.floatPos;
 
-    if (pos && Number.isFinite(Number(pos.left)) && Number.isFinite(Number(pos.top))) {
+    if (positionFitsViewport(pos)) {
         setFloatPosition(Number(pos.left), Number(pos.top));
     } else {
         el.style.left = '';
@@ -1777,8 +1798,8 @@ function renderFloat() {
     // 内容渲染完再定位，否则量不到正确高度
     applyBallPosition();
 
-    // 窗口：用户拖过就用自己的坐标，没拖过就贴着球
-    if (s.display.floatPos) {
+    // 窗口：有落在屏幕内的坐标就用自己的，否则贴着球
+    if (positionFitsViewport(s.display.floatPos)) {
         applyFloatPosition();
     } else {
         windowAnchorToBall();
