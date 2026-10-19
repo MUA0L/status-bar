@@ -2558,6 +2558,9 @@ function buildConfig() {
             ballIcon: s.display.ballIcon,
             accent: s.display.accent,
             density: s.display.density,
+            autoAddFields: s.display.autoAddFields,
+            floatPos: s.display.floatPos ?? null,
+            ballPos: s.display.ballPos ?? null,
         },
     };
 }
@@ -2641,10 +2644,14 @@ function applyConfig(raw, options = {}) {
     s.inject = parsed.inject;
 
     if (options.withDisplay !== false) {
-        // 球和窗的坐标是本机偏好，导入别人的配置时保留自己的位置
-        const keepPos = s.display.floatPos;
-        const keepBallPos = s.display.ballPos;
-        s.display = { ...parsed.display, floatPos: keepPos, ballPos: keepBallPos };
+        // 坐标跟着配置走：文件里带了就用导入的（手机/PC 同步布局），
+        // 没带（旧配置或别人分享的）就保留本机位置
+        s.display = {
+            ...s.display,
+            ...parsed.display,
+            floatPos: parsed.display.floatPos ?? s.display.floatPos,
+            ballPos: parsed.display.ballPos ?? s.display.ballPos,
+        };
     }
 
     if (parsed.name) {

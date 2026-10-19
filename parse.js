@@ -507,9 +507,28 @@ export function normalizeConfig(raw) {
             ballIcon: typeof display.ballIcon === 'string' && display.ballIcon.trim()
                 ? display.ballIcon.trim()
                 : 'fa-solid fa-chart-simple',
-            floatCollapsed: asBool(display.floatCollapsed ?? data.floatCollapsed ?? data.collapsed, true),
             accent: typeof display.accent === 'string' ? display.accent.trim() : '',
             density: ['compact', 'normal'].includes(display.density) ? display.density : 'normal',
+            autoAddFields: asBool(display.autoAddFields ?? data.autoAddFields, false),
+            // 球 / 窗坐标跟着配置走，方便在手机和 PC 之间同步布局
+            floatPos: normalizePos(display.floatPos),
+            ballPos: normalizePos(display.ballPos),
         },
     };
+}
+
+/** 解析 {left, top} 坐标；无效返回 null（表示沿用本机位置） */
+function normalizePos(pos) {
+    if (!pos || typeof pos !== 'object') {
+        return null;
+    }
+
+    const left = Number(pos.left);
+    const top = Number(pos.top);
+
+    if (!Number.isFinite(left) || !Number.isFinite(top)) {
+        return null;
+    }
+
+    return { left: Math.round(left), top: Math.round(top) };
 }
