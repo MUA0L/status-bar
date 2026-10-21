@@ -510,6 +510,7 @@ export function normalizeConfig(raw) {
             accent: typeof display.accent === 'string' ? display.accent.trim() : '',
             density: ['compact', 'normal'].includes(display.density) ? display.density : 'normal',
             autoAddFields: asBool(display.autoAddFields ?? data.autoAddFields, false),
+            snapEdge: asBool(display.snapEdge ?? data.snapEdge, true),
             // 球 / 窗坐标跟着配置走，方便在手机和 PC 之间同步布局
             floatPos: normalizePos(display.floatPos),
             ballPos: normalizePos(display.ballPos),

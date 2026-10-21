@@ -66,6 +66,13 @@
     margin-right: 1px;
 }
 
+/* 模型漏输出状态时的提示行 */
+.sb-inline-missing {
+    opacity: 0.45;
+    font-size: 0.9em;
+    font-style: italic;
+}
+
 .sb-inline:hover {
     opacity: 0.82;
 }
@@ -1037,5 +1044,29 @@ select.sb-inp {
     .sb-btn {
         height: 30px;
         padding: 0 12px;
+    }
+
+    /* 方案 / 快选这类小胶囊在触屏上太矮，抬到 34px 好点中 */
+    .sb-tpl,
+    .sb-chipbtn {
+        min-height: 34px;
+        padding: 5px 12px;
+        font-size: 0.82em;
+    }
+
+    /* 字段行里的图标按钮、删除按钮同样抬一下命中区。
+       用 :where 降权，避免压住上面 .sb-tpl 的 34px */
+    :where(.sb-float-editor) button {
+        min-height: 30px;
+    }
+
+    /* 字段标签在手机上原本只有 ~10px，读起来吃力 */
+    .sb-item-label {
+        font-size: 0.84em;
+    }
+
+    .sb-char-tab {
+        padding: 5px 10px;
+        font-size: 0.82em;
     }
 }

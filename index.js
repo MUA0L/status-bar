@@ -80,7 +80,7 @@ const PROMPT_KEY = 'STATUSBAR_INSTRUCTIONS';
 const DEFAULT_FIELDS = [
     { key: 'time', label: '时间', type: 'text', icon: 'fa-regular fa-clock', max: 100, inline: true },
     { key: 'location', label: '地点', type: 'text', icon: 'fa-solid fa-location-dot', max: 100, inline: true },
-    { key: 'mood', label: '心情', type: 'text', icon: 'fa-regular fa-face-smile', max: 100, inline: true, dynamic: 'mood' },
+    { key: 'mood', label: '心情', type: 'text', icon: 'fa-solid fa-face-smile', max: 100, inline: true, dynamic: 'mood' },
     { key: 'affection', label: '好感', type: 'bar', icon: 'fa-solid fa-heart', max: 100, inline: true },
     { key: 'date', label: '日期', type: 'text', icon: 'fa-regular fa-calendar', max: 100, inline: false },
     { key: 'weather', label: '天气', type: 'text', icon: 'fa-solid fa-cloud-sun', max: 100, inline: false },
@@ -102,7 +102,7 @@ const FIELD_TEMPLATES = [
         fields: [
             { key: 'time', label: '时间', type: 'text', icon: 'fa-regular fa-clock', max: 100, inline: true },
             { key: 'location', label: '地点', type: 'text', icon: 'fa-solid fa-location-dot', max: 100, inline: true },
-            { key: 'mood', label: '心情', type: 'text', icon: 'fa-regular fa-face-smile', max: 100, inline: true, dynamic: 'mood' },
+            { key: 'mood', label: '心情', type: 'text', icon: 'fa-solid fa-face-smile', max: 100, inline: true, dynamic: 'mood' },
             { key: 'affection', label: '好感', type: 'bar', icon: 'fa-solid fa-heart', max: 100, inline: true },
             { key: 'date', label: '日期', type: 'text', icon: 'fa-regular fa-calendar', max: 100, inline: false },
             { key: 'weather', label: '天气', type: 'text', icon: 'fa-solid fa-cloud-sun', max: 100, inline: false },
@@ -121,7 +121,7 @@ const FIELD_TEMPLATES = [
             { key: 'hunger', label: '饥饿', type: 'bar', icon: 'fa-solid fa-utensils', max: 100, inline: false },
             { key: 'thirst', label: '口渴', type: 'bar', icon: 'fa-solid fa-droplet', max: 100, inline: false },
             { key: 'sleep', label: '睡眠', type: 'number', icon: 'fa-solid fa-moon', max: 12, inline: false },
-            { key: 'pain', label: '疼痛', type: 'bar', icon: 'fa-regular fa-face-grimace', max: 10, inline: false },
+            { key: 'pain', label: '疼痛', type: 'bar', icon: 'fa-solid fa-face-grimace', max: 10, inline: false },
             { key: 'weight', label: '体重', type: 'number', icon: 'fa-solid fa-weight-scale', max: 200, inline: false },
         ],
     },
@@ -133,7 +133,7 @@ const FIELD_TEMPLATES = [
             { key: 'pregnancyWeek', label: '孕周', type: 'bar', icon: 'fa-solid fa-person-pregnant', max: 42, inline: true },
             { key: 'dueDate', label: '预产期', type: 'text', icon: 'fa-solid fa-calendar-day', max: 100, inline: true },
             { key: 'fetusState', label: '胎儿状态', type: 'text', icon: 'fa-solid fa-baby', max: 100, inline: false },
-            { key: 'symptom', label: '孕期反应', type: 'text', icon: 'fa-regular fa-face-tired', max: 100, inline: true },
+            { key: 'symptom', label: '孕期反应', type: 'text', icon: 'fa-solid fa-face-tired', max: 100, inline: true },
             { key: 'bellyMeasure', label: '腹围', type: 'number', icon: 'fa-solid fa-ruler-vertical', max: 150, inline: false },
             { key: 'fetalMove', label: '胎动', type: 'text', icon: 'fa-solid fa-hand', max: 100, inline: false },
             { key: 'milkVolume', label: '母乳量', type: 'bar', icon: 'fa-solid fa-person-breastfeeding', max: 100, inline: false },
@@ -175,18 +175,59 @@ const FIELD_TEMPLATES = [
  * 顺序有讲究：越具体的情绪放越前面，避免「疲惫但满足」被宽泛规则先命中。
  */
 const MOOD_ICONS = [
-    // 复合情绪（如"疲惫但放松"）取更主要的那种 —— 负面/中性排前面，正面词排后面
-    { pattern: /(心动|爱慕|迷恋|脸红心跳)/, icon: 'fa-regular fa-face-grin-hearts' },
-    { pattern: /(害羞|羞怯|忸怩)/, icon: 'fa-regular fa-face-flushed' },
-    { pattern: /(非常兴奋|极度兴奋|特别高兴|雀跃|欢快)/, icon: 'fa-regular fa-face-laugh-beam' },
-    { pattern: /(生气|愤怒|恼火|不满|恼怒|不悦|火大)/, icon: 'fa-regular fa-face-angry' },
-    { pattern: /(难过|悲伤|失落|沮丧|委屈|低落|伤心)/, icon: 'fa-regular fa-face-sad-tear' },
-    { pattern: /(吃惊|惊讶|震惊|意外|诧异)/, icon: 'fa-regular fa-face-surprise' },
-    { pattern: /(紧张|焦虑|不安|慌乱|局促|心慌)/, icon: 'fa-regular fa-face-grimace' },
-    { pattern: /(疲惫|倦怠|困倦|劳累|乏力|精疲力竭)/, icon: 'fa-regular fa-face-tired' },
-    { pattern: /(晕|恍惚|迷茫|失神)/, icon: 'fa-regular fa-face-dizzy' },
-    { pattern: /(平静|淡然|中性|无表情|冷淡|漠然|冷静)/, icon: 'fa-regular fa-face-meh' },
-    { pattern: /(微笑|温柔|满足|安心|放松|平和|柔和|开心|高兴|愉快|喜悦|兴奋)/, icon: 'fa-regular fa-face-smile' },
+    /* ---------- 强烈情绪：先判，免得被后面宽泛的词抢走 ---------- */
+    { pattern: /(狂喜|狂笑|大笑|爆笑|笑到|笑哭)/, icon: 'fa-solid fa-face-laugh-squint' },
+    { pattern: /(崇拜|星星眼|惊艳|梦幻)/, icon: 'fa-solid fa-face-grin-stars' },
+    { pattern: /(心动|爱慕|迷恋|恋爱|倾心)/, icon: 'fa-solid fa-face-grin-hearts' },
+    { pattern: /(亲吻|吻)/, icon: 'fa-solid fa-face-kiss-beam' },
+
+    /* ---------- 负面：排在正面之前，复合情绪取更主要的那种 ---------- */
+    { pattern: /(暴怒|狂怒|震怒|暴跳|怒不可遏)/, icon: 'fa-solid fa-face-angry' },
+    { pattern: /(生气|愤怒|发火|恼火|火大|不快)/, icon: 'fa-solid fa-face-angry' },
+    { pattern: /(不满|不悦|烦躁|不耐烦|皱眉)/, icon: 'fa-solid fa-face-frown' },
+    { pattern: /(无语|翻白眼|嫌弃|不屑)/, icon: 'fa-solid fa-face-rolling-eyes' },
+    { pattern: /(大哭|痛哭|崩溃|绝望|哭得)/, icon: 'fa-solid fa-face-sad-cry' },
+    { pattern: /(难过|悲伤|失落|沮丧|委屈|低落|伤心|想哭)/, icon: 'fa-solid fa-face-sad-tear' },
+    { pattern: /(失望|遗憾|叹气)/, icon: 'fa-solid fa-face-frown' },
+    { pattern: /(害怕|恐惧|畏惧|胆怯|心惊)/, icon: 'fa-solid fa-face-frown-open' },
+    { pattern: /(吃惊|惊讶|震惊|意外|诧异)/, icon: 'fa-solid fa-face-surprise' },
+    { pattern: /(紧张|焦虑|不安|慌乱|局促|心慌)/, icon: 'fa-solid fa-face-grimace' },
+    { pattern: /(疲惫|倦怠|困倦|劳累|乏力|精疲力竭|累)/, icon: 'fa-solid fa-face-tired' },
+    { pattern: /(晕|恍惚|迷茫|失神)/, icon: 'fa-solid fa-face-dizzy' },
+
+    /* ---------- 中性 ---------- */
+    { pattern: /(平静|淡然|中性|无表情|冷淡|漠然|冷静|镇定)/, icon: 'fa-solid fa-face-meh' },
+    { pattern: /(放空|空白|发呆|出神)/, icon: 'fa-solid fa-face-meh-blank' },
+
+    /* ---------- 正面 ---------- */
+    { pattern: /(害羞|羞怯|忸怩|害臊|难为情|脸红)/, icon: 'fa-solid fa-face-flushed' },
+    { pattern: /(尴尬|窘迫|难堪|冷汗)/, icon: 'fa-solid fa-face-grin-beam-sweat' },
+    { pattern: /(调皮|俏皮|促狭|吐舌|做鬼脸)/, icon: 'fa-solid fa-face-grin-tongue-wink' },
+    { pattern: /(得意|狡黠|坏笑|窃喜)/, icon: 'fa-solid fa-face-grin-wink' },
+    { pattern: /(傻笑|憨笑|咧嘴)/, icon: 'fa-solid fa-face-grin-wide' },
+    { pattern: /(兴奋|雀跃|欢快|激动|亢奋)/, icon: 'fa-solid fa-face-laugh-beam' },
+    { pattern: /(开心|愉快|高兴|喜悦|快乐|欢欣)/, icon: 'fa-solid fa-face-smile-beam' },
+    { pattern: /(满足|安心|放松|平和|舒适|惬意)/, icon: 'fa-solid fa-face-smile-beam' },
+    { pattern: /(微笑|温柔|柔和|温和)/, icon: 'fa-solid fa-face-smile' },
+    { pattern: /(眨眼|暗示|使眼色)/, icon: 'fa-solid fa-face-smile-wink' },
+
+    /* ---------- 英文兜底：英文角色卡 / 模型直接输出英文情绪 ---------- */
+    { pattern: /\b(ecstatic|thrilled|elated|delighted)\b/i, icon: 'fa-solid fa-face-laugh-squint' },
+    { pattern: /\b(adoring|smitten|in love)\b/i, icon: 'fa-solid fa-face-grin-hearts' },
+    { pattern: /\b(furious|enraged|outraged)\b/i, icon: 'fa-solid fa-face-angry' },
+    { pattern: /\b(angry|mad|annoyed|irritated|upset at)\b/i, icon: 'fa-solid fa-face-angry' },
+    { pattern: /\b(annoyed|displeased|grumpy)\b/i, icon: 'fa-solid fa-face-frown' },
+    { pattern: /\b(sobbing|crying|in tears)\b/i, icon: 'fa-solid fa-face-sad-cry' },
+    { pattern: /\b(sad|down|gloomy|melancholy|homesick)\b/i, icon: 'fa-solid fa-face-sad-tear' },
+    { pattern: /\b(scared|afraid|fearful|terrified)\b/i, icon: 'fa-solid fa-face-frown-open' },
+    { pattern: /\b(surprised|shocked|astonished|startled)\b/i, icon: 'fa-solid fa-face-surprise' },
+    { pattern: /\b(nervous|anxious|tense|uneasy)\b/i, icon: 'fa-solid fa-face-grimace' },
+    { pattern: /\b(tired|exhausted|sleepy|weary|drained)\b/i, icon: 'fa-solid fa-face-tired' },
+    { pattern: /\b(confused|dizzy|puzzled|bewildered)\b/i, icon: 'fa-solid fa-face-dizzy' },
+    { pattern: /\b(calm|neutral|serene|composed)\b/i, icon: 'fa-solid fa-face-meh' },
+    { pattern: /\b(shy|embarrassed|blushing|bashful)\b/i, icon: 'fa-solid fa-face-flushed' },
+    { pattern: /\b(excited|cheerful|happy|joyful|glad)\b/i, icon: 'fa-solid fa-face-laugh-beam' },
+    { pattern: /\b(smiling|gentle|warm|content|peaceful)\b/i, icon: 'fa-solid fa-face-smile' },
 ];
 
 /** 按心情文本挑表情；匹配不到返回空串 */
@@ -237,13 +278,21 @@ const ICON_GROUPS = [
             'fa-solid fa-crown', 'fa-solid fa-star', 'fa-solid fa-star-half-stroke',
         ],
     },
-    {
+        {
         name: '情绪',
         icons: [
-            'fa-regular fa-face-smile', 'fa-regular fa-face-laugh-beam', 'fa-regular fa-face-grin-hearts',
-            'fa-regular fa-face-meh', 'fa-regular fa-face-frown', 'fa-regular fa-face-sad-tear',
-            'fa-regular fa-face-angry', 'fa-regular fa-face-surprise', 'fa-regular fa-face-flushed',
-            'fa-regular fa-face-tired', 'fa-regular fa-face-dizzy', 'fa-regular fa-face-grimace',
+            'fa-solid fa-face-smile', 'fa-solid fa-face-smile-beam', 'fa-solid fa-face-smile-wink',
+            'fa-solid fa-face-grin', 'fa-solid fa-face-grin-beam', 'fa-solid fa-face-grin-beam-sweat',
+            'fa-solid fa-face-grin-hearts', 'fa-solid fa-face-grin-squint', 'fa-solid fa-face-grin-squint-tears',
+            'fa-solid fa-face-grin-stars', 'fa-solid fa-face-grin-tears', 'fa-solid fa-face-grin-tongue',
+            'fa-solid fa-face-grin-tongue-squint', 'fa-solid fa-face-grin-tongue-wink', 'fa-solid fa-face-grin-wide',
+            'fa-solid fa-face-grin-wink', 'fa-solid fa-face-laugh', 'fa-solid fa-face-laugh-beam',
+            'fa-solid fa-face-laugh-squint', 'fa-solid fa-face-laugh-wink', 'fa-solid fa-face-kiss',
+            'fa-solid fa-face-kiss-beam', 'fa-solid fa-face-kiss-wink-heart', 'fa-solid fa-face-flushed',
+            'fa-solid fa-face-meh', 'fa-solid fa-face-meh-blank', 'fa-solid fa-face-rolling-eyes',
+            'fa-solid fa-face-sad-cry', 'fa-solid fa-face-sad-tear', 'fa-solid fa-face-frown',
+            'fa-solid fa-face-frown-open', 'fa-solid fa-face-angry', 'fa-solid fa-face-grimace',
+            'fa-solid fa-face-surprise', 'fa-solid fa-face-tired', 'fa-solid fa-face-dizzy',
         ],
     },
     {
@@ -344,7 +393,7 @@ const ICON_GROUPS = [
 const QUICK_FIELDS = [
     { key: 'time', label: '时间', type: 'text', icon: 'fa-regular fa-clock', inline: true },
     { key: 'location', label: '地点', type: 'text', icon: 'fa-solid fa-location-dot', inline: true },
-    { key: 'mood', label: '心情', type: 'text', icon: 'fa-regular fa-face-smile', inline: true, dynamic: 'mood' },
+    { key: 'mood', label: '心情', type: 'text', icon: 'fa-solid fa-face-smile', inline: true, dynamic: 'mood' },
     { key: 'affection', label: '好感', type: 'bar', icon: 'fa-solid fa-heart', inline: true, max: 100 },
     { key: 'hp', label: '体力', type: 'bar', icon: 'fa-solid fa-heart-pulse', inline: true, max: 100 },
     { key: 'mp', label: '灵力', type: 'bar', icon: 'fa-solid fa-bolt', inline: false, max: 100 },
@@ -368,15 +417,16 @@ const QUICK_FIELDS = [
  * {{fields}}  字段清单，按当前字段自动生成
  * {{example}} 示例 JSON，按当前字段自动生成
  */
-const DEFAULT_PROMPT = `[状态栏要求]
-每次回复正文结束后，另起一行输出一个 <status> 区块，记录该时刻的场景状态。
+const DEFAULT_PROMPT = `[状态栏要求 · 每条回复都必须执行]
+每一轮回复，都要在正文结束后输出一个 <status> 区块，没有例外。
+场景没变化也要输出当前状态；漏掉会让状态栏停留在旧数据。
 
 格式：
 <status>
 {{example}}
 </status>
 
-字段（全部必填）：
+字段（全部必填，缺一项就重写）：
 {{fields}}
 
 多角色：
@@ -392,11 +442,12 @@ const DEFAULT_PROMPT = `[状态栏要求]
 之后重复输出时会以系统倒数后的值为准。
 
 硬性要求：
-1. 整条回复只输出一次该区块，紧跟在正文末尾；
-2. 区块内只有一段合法 JSON，不要加注释、代码块围栏或任何解释文字；
-3. 数值字段输出纯数字，不要带 % 或其它单位；
-4. 字段值用简短词组，不要写成句子；
-5. 不要在正文里用自然语言复述状态栏的内容。`;
+1. 每一条回复都必须包含且仅包含一个该区块 —— 这是硬性条件，不是可选项；
+2. 区块紧跟在正文最后一行之后，不要夹带解释；
+3. 区块内只有一段合法 JSON，不要加注释、代码块围栏或任何解释文字；
+4. 数值字段输出纯数字，不要带 % 或其它单位；
+5. 字段值用简短词组，不要写成句子；
+6. 不要在正文里用自然语言复述状态栏的内容。`;
 
 const DEFAULT_INJECT = {
     depth: 1,
@@ -1033,6 +1084,26 @@ function contentSig(str) {
     return String(hash);
 }
 
+/** 最新回复没带状态时的可见提示（否则看起来像插件卡住了） */
+function showMissingHint(msgId) {
+    const el = messageElement(msgId);
+
+    if (!el) {
+        return;
+    }
+
+    if (el.querySelector('.sb-inline-missing')) {
+        return;
+    }
+
+    const tip = document.createElement('div');
+    tip.className = 'sb-inline sb-inline-missing';
+    // mesid 必须标上：renderAllInline 末尾会按 valid 集合清理孤儿节点
+    tip.dataset.mesid = String(msgId);
+    tip.textContent = '本次回复未带状态 · 可点「重新生成」再试';
+    el.querySelector('.mes_text')?.insertAdjacentElement('afterend', tip);
+}
+
 function renderAllInline() {
     const s = settings();
 
@@ -1050,6 +1121,10 @@ function renderAllInline() {
     if (s.display.inlineLatestOnly) {
         if (latest >= 0 && chat[latest]?.extra?.[STORE_KEY]) {
             renderInline(latest);
+            valid.add(String(latest));
+        } else if (latest >= 0) {
+            // 最新回复没带状态块：给一条浅提示，免得用户以为插件没刷新
+            showMissingHint(latest);
             valid.add(String(latest));
         }
     } else {
@@ -1140,6 +1215,37 @@ function mountBall() {
 /** 球拖动状态；null 表示没在拖 */
 let ballDragState = null;
 
+/** 松手时距边缘多近触发吸附（px） */
+const SNAP_DISTANCE = 28;
+
+/** 吸附后离边缘的距离（px） */
+const SNAP_MARGIN = 12;
+
+/**
+ * 松手时的边缘吸附：离屏幕某条边不足 SNAP_DISTANCE 就贴到该边。
+ * 四边独立判断 —— 拖到角上会同时吸附横竖两条边。
+ */
+function snapBallToEdge(left, top, size) {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let x = left;
+    let y = top;
+
+    if (left <= SNAP_DISTANCE) {
+        x = SNAP_MARGIN;
+    } else if (left + size >= vw - SNAP_DISTANCE) {
+        x = vw - size - SNAP_MARGIN;
+    }
+
+    if (top <= SNAP_DISTANCE) {
+        y = SNAP_MARGIN;
+    } else if (top + size >= vh - SNAP_DISTANCE) {
+        y = vh - size - SNAP_MARGIN;
+    }
+
+    return { left: x, top: y };
+}
+
 function bindBallDrag(ball) {
     ball.addEventListener('pointerdown', event => {
         if (event.button !== undefined && event.button !== 0) {
@@ -1147,6 +1253,7 @@ function bindBallDrag(ball) {
         }
 
         const rect = ball.getBoundingClientRect();
+        const win = floatElement();
 
         ballDragState = {
             pointerId: event.pointerId,
@@ -1155,6 +1262,19 @@ function bindBallDrag(ball) {
             left: rect.left,
             top: rect.top,
             moved: false,
+            // 窗口跟随用：拖动开始时「球 → 窗」的相对位移。
+            // 只在窗口本来贴着球（floatPos 无效）时记录；
+            // 用户单独摆过窗口的话不插手，免得分家。
+            winOffset: (() => {
+                const s = settings();
+
+                if (!s.display.floatOpen || !win || win.hidden || positionFitsViewport(s.display.floatPos)) {
+                    return null;
+                }
+
+                const wr = win.getBoundingClientRect();
+                return { dx: wr.left - rect.left, dy: wr.top - rect.top };
+            })(),
         };
 
         ball.classList.add('sb-ball-dragging');
@@ -1181,12 +1301,17 @@ function bindBallDrag(ball) {
         }
 
         ballDragState.moved = true;
-        setBallPosition(ballDragState.left + dx, ballDragState.top + dy);
 
-        // 窗口还跟着球的话，跟着一起挪，避免拖到一半两者分家
-        const s = settings();
-        if (s.display.floatOpen && !positionFitsViewport(s.display.floatPos)) {
-            windowAnchorToBall();
+        const nextLeft = ballDragState.left + dx;
+        const nextTop = ballDragState.top + dy;
+        setBallPosition(nextLeft, nextTop);
+
+        // 窗口按固定相对位移平移跟随 —— 比每帧重新算锚点稳，不会忽上忽下
+        if (ballDragState.winOffset) {
+            setFloatPosition(
+                nextLeft + ballDragState.winOffset.dx,
+                nextTop + ballDragState.winOffset.dy,
+            );
         }
     });
 
@@ -1205,9 +1330,28 @@ function bindBallDrag(ball) {
 
         if (ballDragState.moved) {
             const rect = ball.getBoundingClientRect();
+            const size = rect.width || 44;
+            let left = rect.left;
+            let top = rect.top;
+
+            // 太靠近屏幕边就吸上去，别让球悬在边上半截
+            if (settings().display.snapEdge !== false) {
+                const snapped = snapBallToEdge(left, top, size);
+                left = snapped.left;
+                top = snapped.top;
+            }
+
+            if (Math.round(left) !== Math.round(rect.left) || Math.round(top) !== Math.round(rect.top)) {
+                setBallPosition(left, top);
+
+                if (ballDragState.winOffset) {
+                    setFloatPosition(left + ballDragState.winOffset.dx, top + ballDragState.winOffset.dy);
+                }
+            }
+
             settings().display.ballPos = {
-                left: Math.round(rect.left),
-                top: Math.round(rect.top),
+                left: Math.round(left),
+                top: Math.round(top),
             };
             saveSettingsDebounced();
         } else {
@@ -1795,11 +1939,16 @@ function renderFloat() {
         badge.textContent = `回看 #${viewMsgId + 1} · 返回`;
     }
 
-    // 内容渲染完再定位，否则量不到正确高度
-    applyBallPosition();
+    // 内容渲染完再定位，否则量不到正确高度。
+    // 拖动过程中不要重设 —— 这时新位置还没落盘，重设会把球/窗拽回默认点，
+    // 表现为「拖到一半球自己跳回中间」。
+    if (!ballDragState) {
+        applyBallPosition();
+    }
 
-    // 窗口：有落在屏幕内的坐标就用自己的，否则贴着球
-    if (positionFitsViewport(s.display.floatPos)) {
+    if (dragState) {
+        // 窗口正被拖动，位置交给拖拽逻辑
+    } else if (positionFitsViewport(s.display.floatPos)) {
         applyFloatPosition();
     } else {
         windowAnchorToBall();
@@ -1978,6 +2127,7 @@ function panelHtml() {
         <label class="sb-chk sb-chk--block"><input type="checkbox" id="sb-show-float"> 显示悬浮球（点击开关悬浮窗）</label>
         <label class="sb-chk sb-chk--block"><input type="checkbox" id="sb-strip"> 从正文里剥离 &lt;status&gt; 区块</label>
         <label class="sb-chk sb-chk--block"><input type="checkbox" id="sb-auto-fields"> 自动识别新字段（模型多给的键自动建成字段）</label>
+        <label class="sb-chk sb-chk--block"><input type="checkbox" id="sb-snap-edge"> 悬浮球贴边吸附</label>
         <div class="sb-row" style="margin-top:-2px">
             <button type="button" class="sb-btn" id="sb-reset-pos">重置球 / 窗口位置</button>
         </div>
@@ -2388,6 +2538,7 @@ function syncControls() {
     setChecked('sb-show-float', s.display.showFloat);
     setChecked('sb-strip', s.inject.strip);
     setChecked('sb-auto-fields', s.display.autoAddFields);
+    setChecked('sb-snap-edge', s.display.snapEdge !== false);
 
     const promptEl = document.getElementById('sb-prompt');
     if (promptEl) {
@@ -2442,6 +2593,7 @@ function bindPanel(root) {
         ['sb-show-float', () => settings().display.showFloat, value => { settings().display.showFloat = value; }],
         ['sb-strip', () => settings().inject.strip, value => { settings().inject.strip = value; }],
         ['sb-auto-fields', () => settings().display.autoAddFields, value => { settings().display.autoAddFields = value; }],
+        ['sb-snap-edge', () => settings().display.snapEdge !== false, value => { settings().display.snapEdge = value; }],
     ];
 
     for (const [id, , apply] of flags) {
@@ -2580,6 +2732,7 @@ function buildConfig() {
             accent: s.display.accent,
             density: s.display.density,
             autoAddFields: s.display.autoAddFields,
+            snapEdge: s.display.snapEdge !== false,
             floatPos: s.display.floatPos ?? null,
             ballPos: s.display.ballPos ?? null,
         },
@@ -2783,6 +2936,8 @@ async function onMessageReceived(msgId, type) {
             delete msg.extra[STORE_KEY];
         }
         await recomputeCurrent();
+        // 这条没带状态：简洁条要换成「未带状态」提示，别留着上一条的
+        renderAllInline();
         renderFloat();
         return;
     }
