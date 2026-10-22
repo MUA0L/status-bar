@@ -126,6 +126,8 @@ export function normalizeField(raw) {
         inline: raw.inline !== false,
         // 时效状态：值里「效果(N)」的 N 每回合自动减一，归零消失
         ttl: raw.ttl === true,
+        // 用户手动加的字段：方案替换 / 恢复默认时不许被抹掉
+        custom: raw.custom === true,
         dynamic,
     };
 }
@@ -201,7 +203,12 @@ function mapFields(obj, fields) {
             continue;
         }
 
-        const value = coerceValue(field, obj[field.key]);
+        let value = coerceValue(field, obj[field.key]);
+
+        // 模型有时直接用中文字段名（{"时间":"夜晚"}），label 也认一次
+        if (value === undefined && field.label && field.label !== field.key) {
+            value = coerceValue(field, obj[field.label]);
+        }
 
         if (value === undefined) {
             continue;
@@ -284,10 +291,32 @@ export function sampleValue(obj, fields, targetKey) {
  *
  * 目标不是猜得完美，而是让新字段立刻能显示 —— 用户随后可以在编辑器里改显示名和图标。
  */
+/** 常见英文键 → 中文标题，自动加字段时优先用中文 */
+const CN_LABEL_HINTS = {
+    time: '时间', date: '日期', day: '日期', location: '地点', place: '地点',
+    scene: '场景', mood: '心情', emotion: '情绪', feeling: '感受',
+    affection: '好感', favor: '好感', love: '爱意', relation: '关系', relationship: '关系',
+    outfit: '服装', clothes: '服装', appearance: '外貌', age: '年龄',
+    weather: '天气', temperature: '温度', hp: '生命', health: '健康',
+    stamina: '体力', energy: '精力', fatigue: '疲劳', hunger: '饥饿',
+    thirst: '口渴', sleep: '睡眠', pain: '疼痛', sanity: '理智',
+    mana: '魔力', level: '等级', exp: '经验', money: '金钱', gold: '金币',
+    status: '状态', state: '状态', states: '状态', buff: '增益', debuff: '减益',
+    item: '物品', items: '物品', inventory: '携带', thought: '想法',
+    action: '动作', pose: '姿势', position: '位置', goal: '目标', task: '任务',
+    exhaustion: '疲惫', stress: '压力', fear: '恐惧', anger: '怒气', joy: '喜悦',
+    arousal: '兴奋', lust: '欲望', trust: '信任', respect: '尊重', morale: '士气',
+    hunger2: '饥饿', wound: '伤势', wounds: '伤势', injury: '伤势', bleeding: '流血',
+    poison: '中毒', curse: '诅咒', blessing: '祝福', buffs: '增益', debuffs: '减益',
+    clothing: '衣着', equipment: '装备', weapon: '武器', armor: '护甲',
+    reputation: '声望', karma: '业力', alignment: '阵营', faction: '势力',
+};
+
 export function inferFieldFromSample(key, value) {
     const field = {
         key,
-        label: key,
+        // 自动加的字段一律用中文标题（英文键没映射上就原样，用户可在编辑器改）
+        label: CN_LABEL_HINTS[key.toLowerCase()] ?? key,
         type: 'text',
         icon: '',
         max: 100,
@@ -324,6 +353,9 @@ export function inferFieldFromSample(key, value) {
     return field;
 }
 
+/** 这些键是元信息，不是状态字段 */
+const RESERVED_KEYS = /^(name|character|char|role|type|id|avatar|角色|姓名|名字|user|you|player|我|你|玩家|自己|主人|主角)$/i;
+
 /** 键名是否适合自动建成字段 */
 export function isUsableKey(key) {
     if (typeof key !== 'string') {
@@ -336,8 +368,18 @@ export function isUsableKey(key) {
         return false;
     }
 
-    // 排除换行、控制字符和明显是句子的键
-    return !/[\n\r\t]/.test(trimmed);
+    // 排除换行、控制字符
+    if (/[\n\r\t]/.test(trimmed)) {
+        return false;
+    }
+
+    // 排除 name / user 这类元信息键
+    if (RESERVED_KEYS.test(trimmed)) {
+        return false;
+    }
+
+    // 至少含一个汉字或字母，避免「1」「--」这种
+    return /[\u4e00-\u9fa5a-zA-Z]/.test(trimmed);
 }
 
 /**
@@ -353,29 +395,143 @@ export function isUsableKey(key) {
  * 判断依据：键名里**没有任何一个**是已知字段，且值全是对象 —— 才算多人。
  * 这样即使某人给字段起了个像人名的 key，也不会误判。
  */
-export function normalizeData(obj, fields) {
-    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+/** 用户自己的身份名 —— 这些键永远不算角色，模型偶尔会把 {{user}} 也写进去 */
+const USER_KEY_PATTERN = /^(user|you|player|me|self|protagonist|我|你|玩家|自己|用户|主人|主角|\{\{user\}\})$/i;
+
+/** 数组格式 [{name:'艾琳', mood:'平静'}] → {艾琳: {mood:'平静'}} */
+function arrayToCharMap(arr) {
+    const out = {};
+
+    for (const item of arr) {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) {
+            continue;
+        }
+
+        const rawName = item.name ?? item.character ?? item.char ?? item.角色 ?? item.姓名 ?? item.名字;
+
+        if (!rawName) {
+            continue;
+        }
+
+        const data = { ...item };
+
+        for (const key of ['name', 'character', 'char', '角色', '姓名', '名字']) {
+            delete data[key];
+        }
+
+        out[String(rawName)] = data;
+    }
+
+    return out;
+}
+
+/** 剥掉模型常见的多包一层：{"characters": {...}} / {"status": {...}} */
+function unwrapContainer(obj) {
+    const keys = Object.keys(obj);
+
+    if (keys.length !== 1) {
+        return obj;
+    }
+
+    const inner = obj[keys[0]];
+
+    if (!inner || typeof inner !== 'object' || Array.isArray(inner)) {
+        return obj;
+    }
+
+    const wrapper = keys[0].toLowerCase();
+
+    return ['characters', 'character', 'chars', 'status', 'statuses', 'states', 'data', 'result']
+        .includes(wrapper)
+        ? inner
+        : obj;
+}
+
+/** 角色名清洗：去掉包裹的引号/括号与首尾空白 */
+function cleanCharName(name) {
+    return String(name)
+        .replace(/^[\s"'「『【[(]+|[\s"'」』】\])]+$/g, '')
+        .trim()
+        .slice(0, 24);
+}
+
+export function isUserLike(name, userName = '') {
+    const trimmed = String(name ?? '').trim();
+
+    if (!trimmed) {
+        return true;
+    }
+
+    if (USER_KEY_PATTERN.test(trimmed)) {
+        return true;
+    }
+
+    return userName && trimmed.toLowerCase() === String(userName).trim().toLowerCase();
+}
+
+/**
+ * 识别模型输出的状态结构。
+ *
+ * 兼容四种常见形态（模型不总是听话）：
+ *   1. {"time":"夜晚","mood":"平静"}                      单人扁平
+ *   2. {"艾琳":{...},"米娅":{...}}                        多人
+ *   3. {"characters":{"艾琳":{...}}}                      多包一层
+ *   4. [{"name":"艾琳",...},{"name":"米娅",...}]          数组
+ *
+ * 无论哪种，用户自己的条目都会被剔除。
+ */
+export function normalizeData(obj, fields, userName = '') {
+    if (!obj) {
         return null;
     }
 
-    const keys = Object.keys(obj);
+    let data = obj;
+
+    if (Array.isArray(data)) {
+        data = arrayToCharMap(data);
+    } else if (typeof data !== 'object') {
+        return null;
+    }
+
+    data = unwrapContainer(data);
+
+    if (Array.isArray(data)) {
+        data = arrayToCharMap(data);
+    }
+
+    if (!data || typeof data !== 'object') {
+        return null;
+    }
+
+    const pruned = {};
+
+    for (const key of Object.keys(data)) {
+        if (isUserLike(key, userName)) {
+            continue;
+        }
+
+        pruned[key] = data[key];
+    }
+
+    const keys = Object.keys(pruned);
 
     if (!keys.length) {
         return null;
     }
 
-    if (!isMultiShape(obj, fields)) {
-        const single = mapFields(obj, fields);
+    if (!isMultiShape(pruned, fields)) {
+        const single = mapFields(pruned, fields);
         return single ? { '': single } : null;
     }
 
     const out = {};
 
     for (const name of keys) {
-        const mapped = mapFields(obj[name], fields);
+        const mapped = mapFields(pruned[name], fields);
+        const clean = cleanCharName(name);
 
-        if (mapped) {
-            out[name] = mapped;
+        if (mapped && clean) {
+            out[clean] = mapped;
         }
     }
 
@@ -511,6 +667,7 @@ export function normalizeConfig(raw) {
             density: ['compact', 'normal'].includes(display.density) ? display.density : 'normal',
             autoAddFields: asBool(display.autoAddFields ?? data.autoAddFields, false),
             snapEdge: asBool(display.snapEdge ?? data.snapEdge, true),
+            autoDetectChars: asBool(display.autoDetectChars ?? data.autoDetectChars, true),
             // 球 / 窗坐标跟着配置走，方便在手机和 PC 之间同步布局
             floatPos: normalizePos(display.floatPos),
             ballPos: normalizePos(display.ballPos),

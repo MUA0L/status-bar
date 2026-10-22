@@ -365,6 +365,14 @@
     border-top: 1px solid var(--sb-line);
 }
 
+/* 正文提到但模型还没给状态的角色 */
+.sb-char-pending {
+    padding: 5px 9px;
+    font-size: 0.82em;
+    font-style: italic;
+    opacity: 0.45;
+}
+
 .sb-char-head {
     padding: 6px 10px 5px;
     background: color-mix(in srgb, var(--sb-bg) 90%, var(--sb-text));
@@ -829,13 +837,6 @@ select.sb-inp {
 }
 
 /* 常用字段快选 */
-.sb-quick {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-bottom: 8px;
-}
-
 .sb-chipbtn {
     padding: 2px 9px;
     border: 1px solid var(--sb-line);

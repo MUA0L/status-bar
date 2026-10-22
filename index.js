@@ -47,6 +47,7 @@ import {
     extractBlock,
     inferFieldFromSample,
     isUsableKey,
+    isUserLike,
     looseParse,
     normalizeConfig,
     normalizeData,
@@ -91,7 +92,7 @@ const DEFAULT_FIELDS = [
 /**
  * 字段方案：整套字段配置，一键套用。
  *
- * 和 QUICK_FIELDS 的区别：快选是单个字段的加减，方案是成体系的替换
+ * 方案是成体系的替换：要么整套换，要么只把缺的补进来。
  * （比如从"日常"整个切到"孕期追踪"）。套用时可以选替换或追加。
  */
 const FIELD_TEMPLATES = [
@@ -390,27 +391,6 @@ const ICON_GROUPS = [
  * 常用字段：一键加进字段表。
  * 加的时候连键名、图标、类型、上限一起带上，用户不用再手填。
  */
-const QUICK_FIELDS = [
-    { key: 'time', label: '时间', type: 'text', icon: 'fa-regular fa-clock', inline: true },
-    { key: 'location', label: '地点', type: 'text', icon: 'fa-solid fa-location-dot', inline: true },
-    { key: 'mood', label: '心情', type: 'text', icon: 'fa-solid fa-face-smile', inline: true, dynamic: 'mood' },
-    { key: 'affection', label: '好感', type: 'bar', icon: 'fa-solid fa-heart', inline: true, max: 100 },
-    { key: 'hp', label: '体力', type: 'bar', icon: 'fa-solid fa-heart-pulse', inline: true, max: 100 },
-    { key: 'mp', label: '灵力', type: 'bar', icon: 'fa-solid fa-bolt', inline: false, max: 100 },
-    { key: 'san', label: '理智', type: 'bar', icon: 'fa-solid fa-brain', inline: false, max: 100 },
-    { key: 'temperature', label: '体温', type: 'number', icon: 'fa-solid fa-thermometer', inline: true, max: 42 },
-    { key: 'fatigue', label: '疲劳', type: 'bar', icon: 'fa-solid fa-bed', inline: true, max: 100 },
-    { key: 'pregnancyWeek', label: '孕周', type: 'bar', icon: 'fa-solid fa-person-pregnant', inline: true, max: 42 },
-    { key: 'weight', label: '体重', type: 'number', icon: 'fa-solid fa-weight-scale', inline: false, max: 200 },
-    { key: 'date', label: '日期', type: 'text', icon: 'fa-regular fa-calendar', inline: false },
-    { key: 'weather', label: '天气', type: 'text', icon: 'fa-solid fa-cloud-sun', inline: false },
-    { key: 'relation', label: '关系', type: 'text', icon: 'fa-solid fa-link', inline: false },
-    { key: 'outfit', label: '服装', type: 'text', icon: 'fa-solid fa-shirt', inline: false },
-    { key: 'task', label: '任务', type: 'text', icon: 'fa-solid fa-list-check', inline: false },
-    { key: 'states', label: '状态', type: 'tags', icon: 'fa-solid fa-wand-sparkles', inline: false },
-    { key: 'items', label: '物品', type: 'tags', icon: 'fa-solid fa-bag-shopping', inline: false },
-];
-
 /**
  * 默认提示词。
  *
@@ -430,10 +410,14 @@ const DEFAULT_PROMPT = `[状态栏要求 · 每条回复都必须执行]
 {{fields}}
 
 多角色：
-如果同时有多名角色需要分别追踪，按角色名分组输出 —— 外层是角色名，内层是该角色的字段：
+场上每个有名字的角色都要单独一份状态，按角色名分组 —— 外层是角色名，内层是该角色的字段：
 <status>
 {"角色甲":{"字段":"值"},"角色乙":{"字段":"值"}}
 </status>
+- 这轮没说话、但仍然在场的角色也要给状态，不要只写开口的那个；
+- 每个角色按自身情况给字段：没有的项可以省略，不必所有人完全一致；
+- 不要输出用户自己（{{user}}）的状态；
+- 角色名统一用中文（英文名角色写中文译名）。
 只追踪一个人时不要加外层，直接输出字段对象。
 
 时效状态：
@@ -469,7 +453,7 @@ const DEFAULT_DISPLAY = {
      * 模型输出了字段表之外的键时，是否自动建成新字段。
      * 默认关闭 —— 字段表保持稳定，未知键只用于「跟随心情」这类动态图标识别。
      */
-    autoAddFields: false,
+    autoAddFields: true,
     /** 悬浮窗坐标 { left, top }；null 表示跟随悬浮球。属于本机偏好，不随配置导出 */
     floatPos: null,
     /** 悬浮球坐标 { left, top }；null 表示用 CSS 默认位置。属于本机偏好，不随配置导出 */
@@ -587,14 +571,56 @@ function parseMessage(mes) {
     // 否则新键在这一轮就被丢掉了
     autoDiscoverFields(raw);
 
-    const data = normalizeData(raw, settings().fields);
+    const data = normalizeData(raw, settings().fields, currentUserName());
 
     if (!data) {
         console.warn('[status-bar] 状态块里没有可用字段，原文：', found.json);
         return null;
     }
 
+    // 值里带「(N)」的自动认定成时效状态
+    autoDetectTtl(data);
+
     return { data, cleaned: found.cleaned };
+}
+
+/**
+ * 自动识别时效状态：值里出现「中毒(3)」这种写法，就给该字段开回合倒数。
+ * 只看 tags / 文本字段 —— 进度条的「42/100」不是时效。
+ */
+function autoDetectTtl(data) {
+    const s = settings();
+    const hasTtl = value => {
+        if (value === undefined || value === null) {
+            return false;
+        }
+
+        if (Array.isArray(value)) {
+            return value.some(item => /[（(]\d+[)）]/.test(String(item)));
+        }
+
+        return /[（(]\d+[)）]/.test(String(value));
+    };
+
+    const turned = [];
+
+    for (const field of s.fields) {
+        if (field.ttl || !['tags', 'text'].includes(field.type)) {
+            continue;
+        }
+
+        const hit = Object.values(data).some(ch => hasTtl(ch?.[field.key]));
+
+        if (hit) {
+            field.ttl = true;
+            turned.push(field.label || field.key);
+        }
+    }
+
+    if (turned.length) {
+        saveSettingsDebounced();
+        notify('info', `检测到时效状态，已为「${turned.join('」「')}」开启回合倒数`);
+    }
 }
 
 /**
@@ -611,7 +637,21 @@ function autoDiscoverFields(raw) {
     }
 
     const known = new Set(s.fields.map(field => field.key));
-    const incoming = [...collectKeys(raw, s.fields)];
+
+    // 用户自己的分支不参与字段发现 —— 否则 user 下面的键会被建成角色状态字段
+    const cleaned = {};
+
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+        for (const [key, value] of Object.entries(raw)) {
+            if (isUserLike(key, currentUserName())) {
+                continue;
+            }
+
+            cleaned[key] = value;
+        }
+    }
+
+    const incoming = [...collectKeys(cleaned, s.fields)];
 
     const fresh = incoming
         .filter(key => !known.has(key) && isUsableKey(key))
@@ -793,7 +833,112 @@ function advanceTtlFields(data) {
  * 注意和 recomputeCurrent 的区别：那边是"从消息快照重建"，
  * 这里是"实时合并" —— 两者语义不同，不要混用。
  */
-async function commit(patch, msgId) {
+/** 当前用户的显示名 —— 用来过滤「用户自己的状态」 */
+function currentUserName() {
+    return getContext()?.name1 ?? '';
+}
+
+/** 正文里常被误当成名字的词（方位/场景），宁缺勿滥 */
+const NAME_BLOCKLIST = new Set([
+    '书房', '庭院', '桌上', '门外', '窗外', '走廊', '房间', '客厅', '厨房', '床上',
+    '地面', '天空', '空气', '远处', '身后', '身前', '身旁', '手里', '心中', '眼中',
+    '声音', '时间', '周围', '附近', '对面', '旁边', '角落', '楼上', '楼下', '门口',
+    '门口', '窗边', '桌旁', '房间', '外面', '里面', '上面', '下面', '前面', '后面',
+]);
+
+/** 代词 / 泛称 —— 不是角色 */
+const NAME_PRONOUNS = /^(他|她|它|他们|她们|它们|大家|众人|两人|三人|所有人|有人|没人|谁|自己|对方)$/;
+
+/**
+ * 从正文里挑出像人名的词 —— 只认「XX说/道/笑/点头」和「XX：」这两种强信号，
+ * 并且排除方位词结尾、代词、以及「笑了 / 说着」这类动补结构。
+ *
+ * 这是兜底识别：宁可漏，也不要凭空造出角色。
+ */
+function detectNamesInText(text) {
+    const found = new Set();
+    const patterns = [
+        /([\u4e00-\u9fa5]{2,3})(?=说|道|问|答|喊|叫|笑|叹|点头|摇头|皱眉|挑眉|开口|低声|轻声|沉声|冷笑|苦笑)/g,
+        /([\u4e00-\u9fa5]{2,3})\s*[：:]/g,
+    ];
+
+    // 「老陈说：」这类冒号写法会把动词一起吞进来，剥掉再判断
+    const VERB_SUFFIX = /(?:点头|摇头|皱眉|挑眉|开口|低声|轻声|沉声|冷笑|苦笑|说|道|问|答|喊|叫|笑|叹)$/;
+
+    for (const re of patterns) {
+        let match;
+
+        while ((match = re.exec(text)) !== null) {
+            const name = match[1].replace(VERB_SUFFIX, '').trim();
+
+            if (name.length < 2) {
+                continue;
+            }
+
+            if (NAME_BLOCKLIST.has(name) || NAME_PRONOUNS.test(name)) {
+                continue;
+            }
+
+            // 方位/处所词结尾 → 地点
+            if (/[里中上下前后边旁内外的]$/.test(name)) {
+                continue;
+            }
+
+            // 助词/语气词结尾 → 多半是「笑了」「说着」这类动补，不是名字
+            if (/[了的地得着过吗呢吧啊么]$/.test(name)) {
+                continue;
+            }
+
+            found.add(name);
+        }
+    }
+
+    return [...found];
+}
+
+/**
+ * 当前场景的已知角色名单。
+ *
+ * 来源三处：状态里已有的、当前角色卡、群聊成员。
+ * 用来兜底 —— 模型只给了一部分人的状态时，靠这份名单把漏掉的补上。
+ */
+function knownCharacterNames() {
+    const names = new Set();
+    const ctx = getContext();
+
+    for (const name of Object.keys(store()?.current ?? {})) {
+        if (name) {
+            names.add(name);
+        }
+    }
+
+    if (ctx?.name2) {
+        names.add(ctx.name2);
+    }
+
+    const roster = ctx?.characters ?? [];
+
+    for (const ch of roster) {
+        if (ch?.name) {
+            names.add(ch.name);
+        }
+    }
+
+    // 群聊：成员存的是 avatar 或名字，统一映射回角色名
+    for (const group of ctx?.groups ?? []) {
+        for (const member of group?.members ?? []) {
+            const hit = roster.find(ch => ch.avatar === member || ch.name === member);
+
+            if (hit?.name) {
+                names.add(hit.name);
+            }
+        }
+    }
+
+    return [...names].filter(Boolean);
+}
+
+async function commit(patch, msgId, mes) {
     const bag = store(true);
     if (!bag) {
         return;
@@ -835,6 +980,32 @@ async function commit(patch, msgId) {
             if (prev && typeof prev === 'object' && !Array.isArray(prev)) {
                 merged[name] = { ...prev };
                 advanceTtlFields(merged[name]);
+                order.push(name);
+            }
+        }
+
+        // 正文里提到、这次却没给状态的已知角色：补一个空占位，
+        // 免得多人场景里「某人在场，状态栏却没有他」
+        if (mes) {
+            const candidates = new Set(knownCharacterNames());
+
+            // 开着自动识别时，再从正文里挑说话的人
+            if (settings().display.autoDetectChars !== false) {
+                for (const name of detectNamesInText(mes)) {
+                    candidates.add(name);
+                }
+            }
+
+            for (const name of candidates) {
+                if (merged[name] || isUserLike(name, currentUserName())) {
+                    continue;
+                }
+
+                if (!mes.includes(name)) {
+                    continue;
+                }
+
+                merged[name] = {};
                 order.push(name);
             }
         }
@@ -1262,18 +1433,17 @@ function bindBallDrag(ball) {
             left: rect.left,
             top: rect.top,
             moved: false,
-            // 窗口跟随用：拖动开始时「球 → 窗」的相对位移。
-            // 只在窗口本来贴着球（floatPos 无效）时记录；
-            // 用户单独摆过窗口的话不插手，免得分家。
-            winOffset: (() => {
+            // 面板开着时球贴在它的角落，拖球等于拖面板：
+            // 记下面板起点，后面按同样的位移搬它
+            winStart: (() => {
                 const s = settings();
-
-                if (!s.display.floatOpen || !win || win.hidden || positionFitsViewport(s.display.floatPos)) {
+        
+                if (!s.display.floatOpen || !win || win.hidden) {
                     return null;
                 }
 
                 const wr = win.getBoundingClientRect();
-                return { dx: wr.left - rect.left, dy: wr.top - rect.top };
+                return { left: wr.left, top: wr.top };
             })(),
         };
 
@@ -1302,16 +1472,14 @@ function bindBallDrag(ball) {
 
         ballDragState.moved = true;
 
-        const nextLeft = ballDragState.left + dx;
-        const nextTop = ballDragState.top + dy;
-        setBallPosition(nextLeft, nextTop);
+        // 球自由移动（面板开着时也只是把球放过去）
+        setBallPosition(ballDragState.left + dx, ballDragState.top + dy);
 
-        // 窗口按固定相对位移平移跟随 —— 比每帧重新算锚点稳，不会忽上忽下
-        if (ballDragState.winOffset) {
-            setFloatPosition(
-                nextLeft + ballDragState.winOffset.dx,
-                nextTop + ballDragState.winOffset.dy,
-            );
+        // 面板开着：按「球在右下角」的关系把面板挪过来，再把球按回角上
+        // （面板被视口夹住时，这一步会把球拉回来，避免两者分家）
+        if (ballDragState.winStart) {
+            positionWindowFromBall();
+            placeBallAtWindowCorner();
         }
     });
 
@@ -1329,6 +1497,27 @@ function bindBallDrag(ball) {
         }
 
         if (ballDragState.moved) {
+            // 面板开着：球是主动方，存球位置；面板坐标一起存，下次打开还原
+            if (ballDragState.winStart) {
+                const ball = ballElement();
+                const win = floatElement();
+
+                if (ball) {
+                    const br = ball.getBoundingClientRect();
+                    settings().display.ballPos = { left: Math.round(br.left), top: Math.round(br.top) };
+                }
+
+                if (win) {
+                    const wr = win.getBoundingClientRect();
+                    settings().display.floatPos = { left: Math.round(wr.left), top: Math.round(wr.top) };
+                }
+
+                placeBallAtWindowCorner();
+                saveSettingsDebounced();
+                ballDragState = null;
+                return;
+            }
+
             const rect = ball.getBoundingClientRect();
             const size = rect.width || 44;
             let left = rect.left;
@@ -1343,10 +1532,6 @@ function bindBallDrag(ball) {
 
             if (Math.round(left) !== Math.round(rect.left) || Math.round(top) !== Math.round(rect.top)) {
                 setBallPosition(left, top);
-
-                if (ballDragState.winOffset) {
-                    setFloatPosition(left + ballDragState.winOffset.dx, top + ballDragState.winOffset.dy);
-                }
             }
 
             settings().display.ballPos = {
@@ -1465,35 +1650,24 @@ function applyBallPosition() {
     setBallPosition((window.innerWidth - size) / 2, (window.innerHeight - size) / 2);
 }
 
-/**
- * 让悬浮窗贴着球出现：优先球上方，上方放不下就放下方，水平以球为中心。
- * 只在用户没手动拖过窗口时（floatPos 为 null）生效。
- */
-function windowAnchorToBall() {
-    const ball = ballElement();
-    const win = floatElement();
-    if (!ball || !win || win.hidden) {
-        return;
-    }
-
-    const br = ball.getBoundingClientRect();
-    const width = win.offsetWidth;
-    const height = win.offsetHeight;
-
-    let left = br.left + br.width / 2 - width / 2;
-    let top = br.top - height - 10;
-
-    if (top < 8) {
-        top = br.bottom + 10;
-    }
-
-    setFloatPosition(left, top);
-}
-
 /** 球点击：开 / 关悬浮窗 */
 function toggleFloat() {
     const s = settings();
     s.display.floatOpen = !s.display.floatOpen;
+
+    // 关窗时必须退出编辑模式 —— 否则球会一直藏着（球是唯一入口，会彻底打不开）
+    if (!s.display.floatOpen) {
+        const ball = ballElement();
+
+        // 球本来贴在面板角落，关窗后留在原地，别瞬移
+        if (ball) {
+            const r = ball.getBoundingClientRect();
+            s.display.ballPos = { left: Math.round(r.left), top: Math.round(r.top) };
+        }
+
+        editorMode = false;
+    }
+
     saveSettingsDebounced();
     renderFloat();
 }
@@ -1528,13 +1702,11 @@ function mountFloat() {
                 先挑方案，或用下面的按钮逐个加字段。改「显示名」就能用，图标在 <b>⋯</b> 里选。
             </div>
             <div class="sb-templates" data-role="templates"></div>
-            <div class="sb-quick" data-role="quick"></div>
             <div class="sb-field-list" data-role="list"></div>
             <div class="sb-editor-actions">
                 <button type="button" class="sb-btn sb-btn--primary" data-act="done">完成</button>
                 <button type="button" class="sb-btn" data-act="addfield">+ 自定义字段</button>
                 <button type="button" class="sb-btn" data-act="preview">预览</button>
-                <button type="button" class="sb-btn" data-act="adv">提示词等设置</button>
                 <button type="button" class="sb-btn sb-btn--danger" data-act="reset">恢复默认</button>
             </div>
             <div class="sb-icon-picker" hidden>
@@ -1546,7 +1718,6 @@ function mountFloat() {
     // 所以不会挤压聊天区，也不会盖住消息（位置由用户自己拖）。
     document.body.appendChild(el);
 
-    bindFloatDrag(el);
     bindFieldEvents(el.querySelector('.sb-float-editor'));
 
     // 图标选择器：点中即写入并收起
@@ -1616,8 +1787,6 @@ function mountFloat() {
         activeChar = tab.dataset.char || null;
         renderFloat();
     });
-
-    applyFloatPosition();
 }
 
 /* ---------- 历史快照菜单 ---------- */
@@ -1680,101 +1849,68 @@ function openHistoryMenu() {
     menu.hidden = false;
 }
 
-/* ---------- 悬浮窗拖动 ---------- */
-
-/** 拖动过程状态；null 表示当前没在拖 */
-let dragState = null;
-
 /** 判定位移超过这个像素才算拖动，否则当成一次点击 */
 const DRAG_THRESHOLD = 4;
 
-function bindFloatDrag(el) {
-    const head = el.querySelector('.sb-float-head');
+/**
+ * 由球的位置反推面板位置。
+ *
+ * 关系是「球骑在面板右下角」：面板左上 = 球左上 − 面板宽高 + 球宽高 − 外探。
+ * 每次都从球推导，不累积误差；面板被视口夹住时，球再由
+ * placeBallAtWindowCorner() 拉回角上，两者不会分家。
+ */
+function positionWindowFromBall() {
+    const win = floatElement();
+    const ball = ballElement();
 
-    head.addEventListener('pointerdown', onDragStart);
-    head.addEventListener('pointermove', onDragMove);
-    head.addEventListener('pointerup', onDragEnd);
-    head.addEventListener('pointercancel', onDragEnd);
+    if (!win || !ball || win.hidden) {
+        return;
+    }
 
+    const b = ball.getBoundingClientRect();
+    const w = win.offsetWidth || 300;
+    const h = win.offsetHeight || 320;
+    const size = ball.offsetWidth || 44;
+
+    setFloatPosition(b.left - w + size - 6, b.top - h + size - 6);
 }
 
-function onDragStart(event) {
-    if (event.button !== undefined && event.button !== 0) {
+/** 球贴着面板右下角 —— 面板一动，球跟着走 */
+function placeBallAtWindowCorner() {
+    const win = floatElement();
+    const ball = ballElement();
+
+    if (!win || !ball || win.hidden) {
         return;
     }
 
-    // 按钮、角标和历史菜单有各自的行为，不参与拖动
-    if (event.target.closest('.sb-tool, .sb-float-badge, .sb-history-menu')) {
-        return;
-    }
+    const wr = win.getBoundingClientRect();
+    const size = ball.offsetWidth || 44;
 
+    // 桌面外探 6px（像骑在角上）；窄屏完全内嵌，否则球会被屏幕边夹开、脱离角落
+    const overhang = window.innerWidth < 500 ? -2 : 6;
+    setBallPosition(wr.right - size + overhang, wr.bottom - size + overhang);
+}
+
+/** 摆面板：有保存的坐标就用，没有就居中偏上 */
+function applyFloatPosition() {
     const el = floatElement();
+
     if (!el) {
         return;
     }
 
-    const rect = el.getBoundingClientRect();
+    const pos = settings().display.floatPos;
 
-    dragState = {
-        pointerId: event.pointerId,
-        startX: event.clientX,
-        startY: event.clientY,
-        left: rect.left,
-        top: rect.top,
-        moved: false,
-    };
-
-    el.classList.add('sb-dragging');
-
-    // 捕获指针，保证拖出头部范围也能继续收到 move / up
-    try {
-        event.target.setPointerCapture(event.pointerId);
-    } catch {
-        // 某些浏览器在 pointerdown 阶段不允许捕获，忽略即可
-    }
-}
-
-function onDragMove(event) {
-    if (!dragState || event.pointerId !== dragState.pointerId) {
+    if (positionFitsViewport(pos)) {
+        setFloatPosition(Number(pos.left), Number(pos.top));
         return;
     }
 
-    const dx = event.clientX - dragState.startX;
-    const dy = event.clientY - dragState.startY;
+    const w = el.offsetWidth || 300;
+    const h = el.offsetHeight || 320;
+    setFloatPosition((window.innerWidth - w) / 2, Math.max(24, (window.innerHeight - h) / 2 - 40));
 
-    if (!dragState.moved && Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) {
-        return;
-    }
-
-    dragState.moved = true;
-    setFloatPosition(dragState.left + dx, dragState.top + dy);
-}
-
-function onDragEnd(event) {
-    if (!dragState || event.pointerId !== dragState.pointerId) {
-        return;
-    }
-
-    const el = floatElement();
-    el?.classList.remove('sb-dragging');
-
-    try {
-        event.target.releasePointerCapture?.(event.pointerId);
-    } catch {
-        // 忽略
-    }
-
-    if (dragState.moved && el) {
-        // 拖完记住位置，下次打开还在原地
-        const rect = el.getBoundingClientRect();
-        settings().display.floatPos = {
-            left: Math.round(rect.left),
-            top: Math.round(rect.top),
-        };
-        saveSettingsDebounced();
-    }
-
-    dragState = null;
 }
 
 /** 把悬浮窗摆到指定坐标，并夹在视口内 */
@@ -1794,24 +1930,6 @@ function setFloatPosition(left, top) {
 }
 
 /** 按保存的坐标摆放；没有坐标就交给 CSS 的 right/bottom 默认值 */
-function applyFloatPosition() {
-    const el = floatElement();
-    if (!el) {
-        return;
-    }
-
-    const pos = settings().display.floatPos;
-
-    if (positionFitsViewport(pos)) {
-        setFloatPosition(Number(pos.left), Number(pos.top));
-    } else {
-        el.style.left = '';
-        el.style.top = '';
-        el.style.right = '';
-        el.style.bottom = '';
-    }
-}
-
 function renderFloat() {
     const el = floatElement();
     const ball = ballElement();
@@ -1821,7 +1939,8 @@ function renderFloat() {
     // 球常驻（只要功能开着），窗口由球控制显隐。
     // 编辑模式下先藏起来 —— 球是 fixed 且层级最高，很容易压住编辑器的按钮。
     if (ball) {
-        ball.hidden = !active || editorMode;
+        // 球始终可见 —— 它是唯一入口，编辑状态也不能藏
+        ball.hidden = !active;
         ball.classList.toggle('sb-ball-active', active && !!s.display.floatOpen && !editorMode);
 
         // 图标可自定义，改完即时生效
@@ -1862,7 +1981,6 @@ function renderFloat() {
         if (editing && !editorRendered) {
             // 只在刚进编辑模式时渲染一次
             renderTemplatesInto(editorEl.querySelector('[data-role="templates"]'));
-            renderQuickAddInto(editorEl.querySelector('[data-role="quick"]'));
             renderFieldListInto(editorEl.querySelector('[data-role="list"]'));
             editorRendered = true;
         } else if (!editing) {
@@ -1915,7 +2033,13 @@ function renderFloat() {
                 }
 
                 if (!fields.length) {
-                    return '';
+                    // 正文里出现过、模型还没给状态的角色：留个位置，别让他在列表里消失
+                    if (!name) {
+                        return '';
+                    }
+
+                    return `<div class="sb-char-group"><div class="sb-char-head">${esc(name)}</div>`
+                        + '<div class="sb-char-pending">状态待定 · 等下一轮更新</div></div>';
                 }
 
                 const head = name ? `<div class="sb-char-head">${esc(name)}</div>` : '';
@@ -1946,12 +2070,15 @@ function renderFloat() {
         applyBallPosition();
     }
 
-    if (dragState) {
-        // 窗口正被拖动，位置交给拖拽逻辑
-    } else if (positionFitsViewport(s.display.floatPos)) {
-        applyFloatPosition();
+    // 面板是主体：先摆面板，球再贴到它的右下角。
+    // 拖动球的过程中不重设，否则会跟手指抢位置。
+    if (s.display.floatOpen) {
+        if (!ballDragState) {
+            applyFloatPosition();
+            placeBallAtWindowCorner();
+        }
     } else {
-        windowAnchorToBall();
+        applyBallPosition();
     }
 }
 
@@ -2025,41 +2152,6 @@ function injectPrompt() {
    设置面板
    ============================================================ */
 
-/**
- * 从悬浮窗直达设置面板。
- *
- * 默认路径要「顶栏 → 扩展设置 → 找到状态栏 → 展开」，三层菜单；
- * 这里一步到位：关窗 → 展开 ST 抽屉 → 展开本扩展面板 → 滚动 + 高亮。
- */
-function openSettingsFromFloat() {
-    settings().display.floatOpen = false;
-    saveSettingsDebounced();
-    renderFloat();
-
-    const drawer = document.getElementById('rm_extensions_block');
-    const drawerClosed = !drawer || (!drawer.classList.contains('openDrawer') && drawer.offsetParent === null);
-
-    if (drawerClosed) {
-        document.getElementById('extensions-settings-button')?.click();
-    }
-
-    const panel = document.getElementById('sb-settings');
-
-    if (!panel) {
-        notify('warning', '设置面板还没加载好，稍等一下再点');
-        return;
-    }
-
-    panel.classList.add('sb-open');
-
-    // 等抽屉的展开动画走完，否则滚动位置会算偏
-    setTimeout(() => {
-        panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        panel.classList.add('sb-flash');
-        setTimeout(() => panel.classList.remove('sb-flash'), 1500);
-    }, 280);
-}
-
 function escAttr(value) {
     return esc(value);
 }
@@ -2128,6 +2220,7 @@ function panelHtml() {
         <label class="sb-chk sb-chk--block"><input type="checkbox" id="sb-strip"> 从正文里剥离 &lt;status&gt; 区块</label>
         <label class="sb-chk sb-chk--block"><input type="checkbox" id="sb-auto-fields"> 自动识别新字段（模型多给的键自动建成字段）</label>
         <label class="sb-chk sb-chk--block"><input type="checkbox" id="sb-snap-edge"> 悬浮球贴边吸附</label>
+        <label class="sb-chk sb-chk--block"><input type="checkbox" id="sb-detect-chars"> 从正文自动识别出场人物（自动补占位状态）</label>
         <div class="sb-row" style="margin-top:-2px">
             <button type="button" class="sb-btn" id="sb-reset-pos">重置球 / 窗口位置</button>
         </div>
@@ -2201,17 +2294,6 @@ function renderFieldListInto(container) {
     container.innerHTML = fields.map((field, index) => fieldRowHtml(field, index, fields.length)).join('');
 }
 
-/** 常用字段按钮：已有的打勾并禁用 */
-function renderQuickAddInto(container) {
-    const keys = new Set(settings().fields.map(field => field.key));
-
-    container.innerHTML = QUICK_FIELDS.map(field => {
-        const has = keys.has(field.key);
-        return `<button type="button" class="sb-chipbtn" data-preset="${escAttr(field.key)}"${has ? ' disabled' : ''}>`
-            + `${has ? '✓ ' : '+ '}${esc(field.label)}</button>`;
-    }).join('');
-}
-
 /** 方案按钮 */
 function renderTemplatesInto(container) {
     container.innerHTML = FIELD_TEMPLATES.map(tpl =>
@@ -2246,8 +2328,11 @@ function applyTemplate(id, root) {
             + `取消：只把缺少的 ${missing.length} 个追加进来`,
         );
 
+        // 用户自己加的字段不参与替换 —— 方案只负责它认识的那一套
+        const customKept = current.filter(field => field.custom && !tpl.fields.some(t => t.key === field.key));
+
         fields = replace
-            ? structuredClone(tpl.fields)
+            ? [...structuredClone(tpl.fields), ...structuredClone(customKept)]
             : [...current, ...missing.map(field => ({ ...field }))];
     }
 
@@ -2316,26 +2401,6 @@ function bindFieldEvents(root) {
             return;
         }
 
-        // 快选按钮
-        const quickBtn = event.target.closest('.sb-chipbtn[data-preset]');
-        if (quickBtn) {
-            if (quickBtn.disabled) {
-                return;
-            }
-
-            const preset = QUICK_FIELDS.find(field => field.key === quickBtn.dataset.preset);
-            if (!preset) {
-                return;
-            }
-
-            settings().fields.push({ ...preset });
-            saveSettingsDebounced();
-            refreshFieldUI(root);
-            scheduleRefresh(120);
-            notify('success', `已添加「${preset.label}」`);
-            return;
-        }
-
         const button = event.target.closest('button[data-act]');
         if (!button) {
             return;
@@ -2394,6 +2459,7 @@ function bindFieldEvents(root) {
                 list.push({
                     key: `custom${list.length + 1}`,
                     label: `自定义${list.length + 1}`,
+                    custom: true,
                     type: 'text',
                     icon: '',
                     max: 100,
@@ -2425,16 +2491,14 @@ function bindFieldEvents(root) {
                 previewData();
                 return;
             }
-            case 'adv': {
-                openSettingsFromFloat();
-                return;
-            }
             case 'reset': {
                 if (!window.confirm('恢复默认字段与提示词？当前配置会被覆盖，聊天里的状态数据不受影响。')) {
                     return;
                 }
                 const s = settings();
-                s.fields = structuredClone(DEFAULT_FIELDS);
+                // 自定义字段是用户自己加的，恢复默认不动它们
+                const keptCustom = s.fields.filter(field => field.custom);
+                s.fields = [...structuredClone(DEFAULT_FIELDS), ...structuredClone(keptCustom)];
                 s.prompt = DEFAULT_PROMPT;
                 s.inject = structuredClone(DEFAULT_INJECT);
                 saveSettingsDebounced();
@@ -2512,13 +2576,8 @@ function bindFieldEvents(root) {
 /** 字段编辑器内容重绘（编辑模式下） */
 function refreshFieldUI(root) {
     const list = root.querySelector('[data-role="list"]');
-    const quick = root.querySelector('[data-role="quick"]');
-
     if (list) {
         renderFieldListInto(list);
-    }
-    if (quick) {
-        renderQuickAddInto(quick);
     }
 }
 
@@ -2539,6 +2598,7 @@ function syncControls() {
     setChecked('sb-strip', s.inject.strip);
     setChecked('sb-auto-fields', s.display.autoAddFields);
     setChecked('sb-snap-edge', s.display.snapEdge !== false);
+    setChecked('sb-detect-chars', s.display.autoDetectChars !== false);
 
     const promptEl = document.getElementById('sb-prompt');
     if (promptEl) {
@@ -2594,6 +2654,7 @@ function bindPanel(root) {
         ['sb-strip', () => settings().inject.strip, value => { settings().inject.strip = value; }],
         ['sb-auto-fields', () => settings().display.autoAddFields, value => { settings().display.autoAddFields = value; }],
         ['sb-snap-edge', () => settings().display.snapEdge !== false, value => { settings().display.snapEdge = value; }],
+        ['sb-detect-chars', () => settings().display.autoDetectChars !== false, value => { settings().display.autoDetectChars = value; }],
     ];
 
     for (const [id, , apply] of flags) {
@@ -2733,6 +2794,7 @@ function buildConfig() {
             density: s.display.density,
             autoAddFields: s.display.autoAddFields,
             snapEdge: s.display.snapEdge !== false,
+            autoDetectChars: s.display.autoDetectChars !== false,
             floatPos: s.display.floatPos ?? null,
             ballPos: s.display.ballPos ?? null,
         },
@@ -2942,7 +3004,7 @@ async function onMessageReceived(msgId, type) {
         return;
     }
 
-    await commit(parsed, msgId);
+    await commit(parsed, msgId, msg.mes);
     // 不赌 RENDERED 事件的先后：收到消息就立刻把简洁条对齐
     renderAllInline();
     renderFloat();
@@ -3149,6 +3211,7 @@ function bindEvents() {
 
         if (settings().display.floatOpen) {
             settings().display.floatOpen = false;
+            editorMode = false;   // 同上：关窗退出编辑，把球放出来
             saveSettingsDebounced();
             renderFloat();
         }
