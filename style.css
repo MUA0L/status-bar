@@ -51,11 +51,19 @@
 }
 
 /* 一个角色一行 */
+/* 简洁条：角色名占固定一列，数值区等宽排列，多角色时上下对齐 */
 .sb-inline-row {
+    display: grid;
+    grid-template-columns: minmax(3.4em, auto) minmax(0, 1fr);
+    align-items: center;
+    gap: 3px 8px;
+}
+
+.sb-inline-chips {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
-    gap: 5px;
+    gap: 4px;
+    min-width: 0;
 }
 
 .sb-inline-name {
@@ -82,6 +90,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
+    min-width: 5.6em;
     max-width: 100%;
     padding: 1px 7px;
     border-radius: 5px;
@@ -1070,4 +1079,148 @@ select.sb-inp {
         padding: 5px 10px;
         font-size: 0.82em;
     }
+}
+
+/* ---------- 字段板切换（默认板 / 角色专属板） ---------- */
+.sb-board-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-bottom: 7px;
+    margin-bottom: 7px;
+    border-bottom: 1px solid var(--sb-line, rgba(127, 127, 127, .18));
+    flex-wrap: wrap;
+}
+
+.sb-board-tabs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+    flex-wrap: wrap;
+}
+
+.sb-board-slot {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+}
+
+.sb-board-tab {
+    padding: 3px 9px;
+    font-size: .8em;
+    line-height: 1.5;
+    border: 1px solid var(--sb-line, rgba(127, 127, 127, .22));
+    border-radius: 999px;
+    background: transparent;
+    color: inherit;
+    opacity: .75;
+    cursor: pointer;
+}
+
+.sb-board-tab.is-active {
+    opacity: 1;
+    border-color: var(--sb-accent, #6ea8fe);
+    color: var(--sb-accent, #6ea8fe);
+    background: color-mix(in srgb, var(--sb-accent, #6ea8fe) 12%, transparent);
+}
+
+.sb-board-x {
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: inherit;
+    opacity: .4;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.sb-board-x:hover {
+    opacity: .9;
+}
+
+.sb-board-add {
+    flex: 0 0 auto;
+    padding: 3px 9px;
+    font-size: .8em;
+    border: 1px dashed var(--sb-line, rgba(127, 127, 127, .3));
+    border-radius: 999px;
+    background: transparent;
+    color: inherit;
+    opacity: .7;
+    cursor: pointer;
+}
+
+/* 字段列表内部滚动：手机上字段多时，「完成」等按钮始终留在面板底部可见 */
+.sb-field-list {
+    max-height: min(46vh, 380px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+@media (max-width: 1000px) {
+    .sb-field-list {
+        max-height: 40vh;
+    }
+
+    /* 编辑器整体也留一层滚动兜底，避免极小屏被裁 */
+    .sb-float-editor {
+        max-height: calc(100vh - 80px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+}
+
+
+/* ---------- 内心想法（面板顶部固定区） ---------- */
+.sb-thought-row {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+}
+
+.sb-thought-row + .sb-thought-row {
+    margin-top: 4px;
+}
+
+.sb-thought-name {
+    flex: 0 0 auto;
+    font-style: normal;
+    font-weight: 600;
+    opacity: 0.92;
+    font-size: 0.95em;
+}
+
+.sb-thought-name::after {
+    content: '：';
+    opacity: 0.6;
+}
+
+.sb-thought-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.sb-thought {
+    padding: 7px 12px;
+    font-size: 0.85em;
+    font-style: italic;
+    line-height: 1.55;
+    opacity: 0.82;
+    border-bottom: 1px solid var(--sb-line, rgba(127, 127, 127, .16));
+    max-height: 5.6em;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* 单人简洁条：不需要角色名列，整行铺满 */
+.sb-inline-row.is-solo {
+    grid-template-columns: minmax(0, 1fr);
 }

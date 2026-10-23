@@ -129,7 +129,8 @@ const FIELD_TEMPLATES = [
     {
         id: 'pregnancy',
         name: '孕期',
-        desc: '孕周、预产期、胎儿与体征',
+        desc: '孕周、预产期、胎儿与体征（剧情里怀孕才自动挂上）',
+        trigger: /孕|怀孕|妊娠|胎动|预产期|孕吐/,
         fields: [
             { key: 'pregnancyWeek', label: '孕周', type: 'bar', icon: 'fa-solid fa-person-pregnant', max: 42, inline: true },
             { key: 'dueDate', label: '预产期', type: 'text', icon: 'fa-solid fa-calendar-day', max: 100, inline: true },
@@ -144,7 +145,8 @@ const FIELD_TEMPLATES = [
     {
         id: 'cycle',
         name: '生理周期',
-        desc: '周期阶段、经期与基础体温',
+        desc: '周期阶段、经期与基础体温（提到经期才自动挂上）',
+        trigger: /经期|月经|生理期|排卵|姨妈/,
         fields: [
             { key: 'cyclePhase', label: '周期阶段', type: 'text', icon: 'fa-solid fa-calendar-days', max: 100, inline: true },
             { key: 'cycleDay', label: '经期第几天', type: 'number', icon: 'fa-solid fa-droplet', max: 10, inline: true },
@@ -158,13 +160,64 @@ const FIELD_TEMPLATES = [
     {
         id: 'combat',
         name: '战斗',
-        desc: '生命魔力护甲与状态',
+        desc: '生命魔力护甲与状态（进入战斗才自动挂上）',
+        trigger: /战斗|交战|对决|厮杀|开打|回合/,
         fields: [
             { key: 'hp', label: '生命', type: 'bar', icon: 'fa-solid fa-heart', max: 100, inline: true },
             { key: 'mp', label: '魔力', type: 'bar', icon: 'fa-solid fa-bolt', max: 100, inline: true },
             { key: 'armor', label: '护甲', type: 'bar', icon: 'fa-solid fa-shield', max: 100, inline: true },
             { key: 'buffs', label: '状态', type: 'tags', icon: 'fa-solid fa-skull', max: 100, inline: false },
             { key: 'round', label: '回合', type: 'number', icon: 'fa-solid fa-hourglass-half', max: 999, inline: false },
+        ],
+    },
+    {
+        id: 'injury',
+        name: '伤势',
+        desc: '伤口、出血与处理（受伤才自动挂上）',
+        trigger: /伤口|流血|出血|骨折|受伤|扭伤|淤青|绷带|失血|刀伤|擦伤/,
+        fields: [
+            { key: 'wound', label: '伤处', type: 'text', icon: 'fa-solid fa-bandage', max: 100, inline: true },
+            { key: 'severity', label: '严重度', type: 'bar', icon: 'fa-solid fa-droplet', max: 100, inline: true },
+            { key: 'bleeding', label: '出血', type: 'bar', icon: 'fa-solid fa-droplet-slash', max: 100, inline: false },
+            { key: 'treatment', label: '处理', type: 'text', icon: 'fa-solid fa-kit-medical', max: 100, inline: false },
+            { key: 'healTime', label: '恢复', type: 'text', icon: 'fa-solid fa-hourglass-half', max: 100, inline: false },
+        ],
+    },
+    {
+        id: 'desire',
+        name: '亲密',
+        desc: '情欲、敏感与理智（成人向剧情自动挂上）',
+        trigger: /情欲|欲望|情动|湿润|敏感|燥热|喘息|情难自禁|难以自持/,
+        fields: [
+            { key: 'desire', label: '情欲', type: 'bar', icon: 'fa-solid fa-fire', max: 100, inline: true },
+            { key: 'sensitivity', label: '敏感', type: 'bar', icon: 'fa-solid fa-bolt', max: 100, inline: false },
+            { key: 'composure', label: '理智', type: 'bar', icon: 'fa-solid fa-brain', max: 100, inline: true },
+            { key: 'reaction', label: '反应', type: 'text', icon: 'fa-solid fa-water', max: 100, inline: false },
+            { key: 'restraint', label: '克制', type: 'bar', icon: 'fa-solid fa-hand', max: 100, inline: false },
+        ],
+    },
+    {
+        id: 'mind',
+        name: '精神',
+        desc: '理智、压力与心理状态（精神紧绷才自动挂上）',
+        trigger: /理智|恐惧|压力|崩溃|幻觉|焦虑|执念|心神|疯/,
+        fields: [
+            { key: 'sanity', label: '理智', type: 'bar', icon: 'fa-solid fa-brain', max: 100, inline: true },
+            { key: 'stress', label: '压力', type: 'bar', icon: 'fa-solid fa-water-ladder', max: 100, inline: true },
+            { key: 'fear', label: '恐惧', type: 'bar', icon: 'fa-solid fa-ghost', max: 100, inline: false },
+            { key: 'mindNote', label: '心理', type: 'text', icon: 'fa-solid fa-comment-dots', max: 100, inline: false },
+        ],
+    },
+    {
+        id: 'social',
+        name: '社交',
+        desc: '声望、信任与阵营（涉及人际博弈时挂上）',
+        trigger: /声望|信任|猜疑|敌意|名声|敬畏|阵营|好感度/,
+        fields: [
+            { key: 'reputation', label: '声望', type: 'bar', icon: 'fa-solid fa-star', max: 100, inline: true },
+            { key: 'trust', label: '信任', type: 'bar', icon: 'fa-solid fa-handshake', max: 100, inline: true },
+            { key: 'faction', label: '阵营', type: 'text', icon: 'fa-solid fa-flag', max: 100, inline: false },
+            { key: 'suspicion', label: '猜疑', type: 'bar', icon: 'fa-solid fa-eye', max: 100, inline: false },
         ],
     },
 ];
@@ -401,7 +454,16 @@ const DEFAULT_PROMPT = `[状态栏要求 · 每条回复都必须执行]
 每一轮回复，都要在正文结束后输出一个 <status> 区块，没有例外。
 场景没变化也要输出当前状态；漏掉会让状态栏停留在旧数据。
 
+内心想法（先输出）：
+先输出内心想法 —— 场上每个角色各一条，按角色名分组；外层是角色名，内层是一两句第一人称的念头（不写旁白）。
 格式：
+<thought>
+{"角色甲":"此刻的念头","角色乙":"此刻的念头"}
+</thought>
+只追踪一个人时直接写一句话，不要加外层。
+想法结束后必须换一行，再输出状态块，不要和状态块写在同一行。
+
+状态块格式：
 <status>
 {{example}}
 </status>
@@ -454,6 +516,17 @@ const DEFAULT_DISPLAY = {
      * 默认关闭 —— 字段表保持稳定，未知键只用于「跟随心情」这类动态图标识别。
      */
     autoAddFields: true,
+    /** 从正文自动识别出场人物（补占位状态） */
+    autoDetectChars: true,
+    /** 松手时球吸附到屏幕边缘 */
+    snapEdge: true,
+    /** 角色专属字段板：{ 角色名: [字段] }，空板则走默认板 */
+    charBoards: {},
+    /** 角色连续几轮没出现就清掉它的状态（0 = 立即清） */
+    staleRounds: 2,
+
+    /** 是否显示/要求「内心想法」（面板顶部固定区） */
+    showThought: true,
     /** 悬浮窗坐标 { left, top }；null 表示跟随悬浮球。属于本机偏好，不随配置导出 */
     floatPos: null,
     /** 悬浮球坐标 { left, top }；null 表示用 CSS 默认位置。属于本机偏好，不随配置导出 */
@@ -493,6 +566,12 @@ function settings() {
 
     if (!Array.isArray(s.fields)) {
         s.fields = structuredClone(DEFAULT_FIELDS);
+    }
+
+    // 旧版把条件方案字段直接塞进默认板（带 auto 标记）。现在改成按角色运行时叠加，
+    // 这里清掉历史残留，避免字段表被污染。
+    if (s.fields.some(field => field?.auto)) {
+        s.fields = s.fields.filter(field => !field?.auto);
     }
 
     if (!s.inject || typeof s.inject !== 'object') {
@@ -546,7 +625,7 @@ function parseMessage(mes) {
         if (tail) {
             const raw = looseParse(tail[0]);
             const keys = raw && typeof raw === 'object' && !Array.isArray(raw) ? Object.keys(raw) : [];
-            const fieldKeys = new Set(settings().fields.map(field => field.key));
+            const fieldKeys = new Set(allKnownFields().map(field => field.key));
             const hasKnown = keys.some(key => fieldKeys.has(key));
             const looksMulti = keys.length > 0 && keys.every(key => raw[key] && typeof raw[key] === 'object' && !Array.isArray(raw[key]));
 
@@ -571,7 +650,7 @@ function parseMessage(mes) {
     // 否则新键在这一轮就被丢掉了
     autoDiscoverFields(raw);
 
-    const data = normalizeData(raw, settings().fields, currentUserName());
+    const data = normalizeData(raw, allKnownFields(), currentUserName());
 
     if (!data) {
         console.warn('[status-bar] 状态块里没有可用字段，原文：', found.json);
@@ -604,7 +683,7 @@ function autoDetectTtl(data) {
 
     const turned = [];
 
-    for (const field of s.fields) {
+    for (const field of allKnownFields()) {
         if (field.ttl || !['tags', 'text'].includes(field.type)) {
             continue;
         }
@@ -801,7 +880,7 @@ function advanceTtlValue(value) {
 
 /** 对单角色的数据推进所有开了「时效」的字段 */
 function advanceTtlFields(data) {
-    for (const field of settings().fields) {
+    for (const field of allKnownFields()) {
         if (!field.ttl) {
             continue;
         }
@@ -833,7 +912,200 @@ function advanceTtlFields(data) {
  * 注意和 recomputeCurrent 的区别：那边是"从消息快照重建"，
  * 这里是"实时合并" —— 两者语义不同，不要混用。
  */
-/** 当前用户的显示名 —— 用来过滤「用户自己的状态」 */
+/**
+ * 该角色用哪套字段板。
+ *
+ * 有专属板就用专属板；没有（或空板）就退回默认板 ——
+ * 「每个角色出场的时候都是默认板」就是这个回退。
+ */
+function fieldsFor(name) {
+    const s = settings();
+    const board = name ? s.display.charBoards?.[name] : null;
+    const base = Array.isArray(board) && board.length ? board : s.fields;
+
+    // 该角色命中的条件方案（怀孕 / 伤势 / 亲密……）叠加在后面
+    const ids = name ? store()?.dynamic?.[name] : null;
+
+    if (!Array.isArray(ids) || !ids.length) {
+        return base;
+    }
+
+    const keys = new Set(base.map(field => field.key));
+    const extra = [];
+
+    for (const id of ids) {
+        const tpl = FIELD_TEMPLATES.find(item => item.id === id);
+
+        for (const field of tpl?.fields ?? []) {
+            if (!keys.has(field.key)) {
+                keys.add(field.key);
+                extra.push(field);
+            }
+        }
+    }
+
+    return extra.length ? [...base, ...extra] : base;
+}
+
+/** 该角色因剧情命中的方案字段（可能还没有值，但要显示出来占位） */
+function dynamicKeysFor(name) {
+    const ids = name ? store()?.dynamic?.[name] : null;
+    const keys = new Set();
+
+    if (!Array.isArray(ids)) {
+        return keys;
+    }
+
+    for (const id of ids) {
+        const tpl = FIELD_TEMPLATES.find(item => item.id === id);
+
+        for (const field of tpl?.fields ?? []) {
+            if (field?.key) {
+                keys.add(field.key);
+            }
+        }
+    }
+
+    return keys;
+}
+
+/**
+ * 解析用的字段并集（默认板 + 所有角色专属板）。
+ *
+ * 解析必须比渲染宽松：角色专属板里才有的键不能被当成未知键丢掉。
+ */
+function allKnownFields() {
+    const s = settings();
+    const map = new Map();
+
+    for (const field of s.fields) {
+        map.set(field.key, field);
+    }
+
+    for (const board of Object.values(s.display.charBoards ?? {})) {
+        for (const field of board ?? []) {
+            if (field?.key && !map.has(field.key)) {
+                map.set(field.key, field);
+            }
+        }
+    }
+
+    // 条件方案的字段也要认 —— 它们运行时才出现在 fieldsFor 里
+    for (const tpl of FIELD_TEMPLATES) {
+        for (const field of tpl.fields ?? []) {
+            if (field?.key && !map.has(field.key)) {
+                map.set(field.key, field);
+            }
+        }
+    }
+
+    return [...map.values()];
+}
+
+/** 编辑器当前编辑的字段板：'' = 默认板，否则角色名 */
+let editingBoard = '';
+
+/** 取当前编辑的字段数组；create=true 且角色板不存在时，从默认板复制一份 */
+function currentBoard(create) {
+    const s = settings();
+
+    if (!editingBoard) {
+        return s.fields;
+    }
+
+    s.display.charBoards = s.display.charBoards ?? {};
+
+    if (!Array.isArray(s.display.charBoards[editingBoard])) {
+        if (!create) {
+            return s.fields;
+        }
+
+        s.display.charBoards[editingBoard] = structuredClone(s.fields);
+    }
+
+    return s.display.charBoards[editingBoard];
+}
+
+/** 把编辑结果写回当前板 */
+function commitBoard(next) {
+    const s = settings();
+
+    if (editingBoard) {
+        s.display.charBoards = s.display.charBoards ?? {};
+        s.display.charBoards[editingBoard] = next;
+    } else {
+        s.fields = next;
+    }
+
+    saveSettingsDebounced();
+}
+
+/**
+ * 关键词命中判定 —— 处理简单否定（「我可不想怀孕」不算命中）。
+ *
+ * 只往前看 4 个字，够覆盖「不想 / 没有 / 别 / 才不会」这类常见说法。
+ */
+function hitsKeyword(text, pattern) {
+    const re = new RegExp(pattern.source, pattern.flags.replace('g', ''));
+    const match = re.exec(text);
+
+    if (!match) {
+        return false;
+    }
+
+    const before = text.slice(Math.max(0, match.index - 4), match.index);
+
+    return !/[不没别勿未无非]/.test(before);
+}
+
+/**
+ * 按剧情给每个角色挂载 / 卸载条件方案。
+ *
+ * 每个角色的状态文本单独判定 —— 谁命中就只给谁加字段，互不牵连。
+ * 结果存进 bag.dynamic = { 角色: [方案id...] }，不动全局字段表，
+ * 所以不会污染编辑器里的默认板。
+ */
+function syncConditionalTemplates(data) {
+    const bag = store(true);
+
+    if (!bag || !data || typeof data !== 'object') {
+        return;
+    }
+
+    const next = {};
+
+    for (const [name, charData] of Object.entries(data)) {
+        if (!charData || typeof charData !== 'object' || Array.isArray(charData)) {
+            continue;
+        }
+
+        const haystack = Object.values(charData)
+            .map(value => (Array.isArray(value) ? value.join(' ') : String(value ?? '')))
+            .join(' ');
+
+        if (!haystack.trim()) {
+            continue;
+        }
+
+        const hits = FIELD_TEMPLATES
+            .filter(tpl => tpl.trigger && hitsKeyword(haystack, tpl.trigger))
+            .map(tpl => tpl.id);
+
+        if (hits.length) {
+            next[name] = hits;
+        }
+    }
+
+    // 有变化才写回，避免每轮都触发重绘
+    if (JSON.stringify(bag.dynamic ?? {}) !== JSON.stringify(next)) {
+        bag.dynamic = next;
+        saveSettingsDebounced();
+        scheduleRefresh(160);
+    }
+}
+
+/**
+ * 当前用户的显示名 —— 用来过滤「用户自己的状态」 */
 function currentUserName() {
     return getContext()?.name1 ?? '';
 }
@@ -858,7 +1130,7 @@ const NAME_PRONOUNS = /^(他|她|它|他们|她们|它们|大家|众人|两人|�
 function detectNamesInText(text) {
     const found = new Set();
     const patterns = [
-        /([\u4e00-\u9fa5]{2,3})(?=说|道|问|答|喊|叫|笑|叹|点头|摇头|皱眉|挑眉|开口|低声|轻声|沉声|冷笑|苦笑)/g,
+        /([\u4e00-\u9fa5]{2,3})(?=说|道|问|答|喊|叫|开口|低声|轻声|沉声|冷笑|苦笑|叹息)/g,
         /([\u4e00-\u9fa5]{2,3})\s*[：:]/g,
     ];
 
@@ -876,6 +1148,11 @@ function detectNamesInText(text) {
             }
 
             if (NAME_BLOCKLIST.has(name) || NAME_PRONOUNS.test(name)) {
+                continue;
+            }
+
+            // 「她低头」「他转身」这类：代词开头 + 动作词，不是人名
+            if (/^(她|他|它|你|我|咱|俺|谁|那|这)/.test(name)) {
                 continue;
             }
 
@@ -938,10 +1215,16 @@ function knownCharacterNames() {
     return [...names].filter(Boolean);
 }
 
-async function commit(patch, msgId, mes) {
+async function commit(patch, msgId, mes, thought) {
     const bag = store(true);
     if (!bag) {
         return;
+    }
+
+    // 内心想法：每个角色一条，跟着最新一条带状态的回复走
+    if (thought && typeof thought === 'object') {
+        bag.thoughts = thought;
+        delete bag.thought;
     }
 
     const isSolo = Object.prototype.hasOwnProperty.call(patch, SOLO_KEY);
@@ -1010,6 +1293,28 @@ async function commit(patch, msgId, mes) {
             }
         }
 
+        // 连续 N 轮没出现的角色：按用户要求把状态清掉（角色名留着，显示「状态待定」）
+        const staleRaw = Number(settings().display.staleRounds);
+        const staleLimit = Number.isFinite(staleRaw) ? Math.max(0, staleRaw) : 2;
+
+        const seen = { ...(bag.seen ?? {}) };
+
+        for (const name of order) {
+            // 本次输出里有这个人 → 重置计数
+            if (patch[name]) {
+                delete seen[name];
+                continue;
+            }
+
+            seen[name] = (seen[name] ?? 0) + 1;
+
+            if (seen[name] > staleLimit) {
+                merged[name] = {};
+            }
+        }
+
+        bag.seen = seen;
+
         while (order.length > MAX_CHARS) {
             const dropped = order.pop();
             delete merged[dropped];
@@ -1021,6 +1326,9 @@ async function commit(patch, msgId, mes) {
     bag.msgId = msgId ?? null;
     bag.updatedAt = Date.now();
 
+    // 剧情命中某个条件方案（怀孕 / 受伤 / 亲密……）就自动挂上对应字段
+    syncConditionalTemplates(merged);
+
     await saveMetadata();
 }
 
@@ -1028,8 +1336,60 @@ async function commit(patch, msgId, mes) {
  * 从消息正文提取状态，写进 message.extra，并按需剥离原文。
  * @returns {object|null} 解析出的状态
  */
+/** 内心想法块 —— 与状态块分开，单独展示在面板顶部 */
+const THOUGHT_KEY = 'statusbarThought';
+const THOUGHT_RE = /<\s*thought\s*>([\s\S]*?)<\s*\/\s*thought\s*>/i;
+
+function extractThought(text) {
+    const raw = String(text ?? '');
+    const hit = raw.match(THOUGHT_RE);
+
+    if (!hit) {
+        return { map: null, cleaned: raw };
+    }
+
+    const inner = hit[1].trim();
+    const cleaned = raw.replace(THOUGHT_RE, '').replace(/\n{3,}/g, '\n\n').trim();
+
+    if (!inner) {
+        return { map: null, cleaned };
+    }
+
+    // 优先按 JSON 读（多角色各一条）；不是 JSON 就整段当单人的念头
+    const parsed = looseParse(inner);
+
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        const map = {};
+
+        for (const [name, value] of Object.entries(parsed)) {
+            const line = String(value ?? '').trim();
+
+            if (line) {
+                map[String(name).trim()] = line;
+            }
+        }
+
+        if (Object.keys(map).length) {
+            return { map, cleaned };
+        }
+    }
+
+    return { map: { '': inner }, cleaned };
+}
+
 function ingest(msg, shouldStrip) {
-    const parsed = parseMessage(msg.mes);
+    // 想法先摘出来，正文/状态解析都不受它影响
+    const thought = extractThought(msg.mes);
+
+    msg.extra = msg.extra || {};
+
+    if (thought.map) {
+        msg.extra[THOUGHT_KEY] = thought.map;
+    } else {
+        delete msg.extra[THOUGHT_KEY];
+    }
+
+    const parsed = parseMessage(thought.cleaned);
 
     if (!parsed) {
         return null;
@@ -1200,16 +1560,22 @@ function renderInline(msgId) {
             // 每个角色一行；单人的角色名是空串，不渲染名字
             const rows = Object.entries(bagData)
                 .map(([name, charData]) => {
-                    const fields = s.fields.filter(field => field.inline && charData[field.key] !== undefined);
+                    const dynKeys = dynamicKeysFor(name);
+                    const fields = fieldsFor(name).filter(field => field.inline
+                        && (charData[field.key] !== undefined || dynKeys.has(field.key)));
 
                     if (!fields.length) {
                         return '';
                     }
 
                     const nameHtml = name ? `<span class="sb-inline-name">${esc(name)}</span>` : '';
-                    const chips = fields.map(field => chipHtml(field, charData[field.key])).join('');
+                    const chips = fields.map(field => chipHtml(
+                        field,
+                        charData[field.key] === undefined ? '—' : charData[field.key],
+                    )).join('');
 
-                    return `<div class="sb-inline-row">${nameHtml}${chips}</div>`;
+                    // 有角色名时走两列栅格（名字一列、数值一列），单人则整行铺满
+                    return `<div class="sb-inline-row${name ? '' : ' is-solo'}">${nameHtml}<span class="sb-inline-chips">${chips}</span></div>`;
                 })
                 .filter(Boolean);
 
@@ -1694,10 +2060,15 @@ function mountFloat() {
                 </button>
             </span>
         </div>
+        <div class="sb-thought" hidden></div>
         <div class="sb-history-menu" hidden></div>
         <div class="sb-char-tabs" hidden></div>
         <div class="sb-float-body"></div>
         <div class="sb-float-editor" hidden>
+            <div class="sb-board-bar">
+                <div class="sb-board-tabs" data-role="boards"></div>
+                <button type="button" class="sb-board-add" data-act="addchar" title="添加角色专属字段板">+ 角色</button>
+            </div>
             <div class="sb-hint">
                 先挑方案，或用下面的按钮逐个加字段。改「显示名」就能用，图标在 <b>⋯</b> 里选。
             </div>
@@ -1981,6 +2352,7 @@ function renderFloat() {
         if (editing && !editorRendered) {
             // 只在刚进编辑模式时渲染一次
             renderTemplatesInto(editorEl.querySelector('[data-role="templates"]'));
+            renderBoardsInto(editorEl.querySelector('[data-role="boards"]'));
             renderFieldListInto(editorEl.querySelector('[data-role="list"]'));
             editorRendered = true;
         } else if (!editing) {
@@ -2021,12 +2393,37 @@ function renderFloat() {
         viewChars = chars.filter(([name]) => name === activeChar);
     }
 
+    // 内心想法：固定在面板顶部，不随角色列表滚动
+    const thoughtEl = el.querySelector('.sb-thought');
+
+    if (thoughtEl) {
+        const bagForThought = store();
+        const showThought = s.display.showThought !== false;
+
+        // 兼容旧数据：单个字符串当成单人念头
+        const rawThoughts = bagForThought?.thoughts
+            ?? (bagForThought?.thought ? { '': bagForThought.thought } : {});
+
+        const entries = showThought
+            ? Object.entries(rawThoughts).filter(([, value]) => String(value ?? '').trim())
+            : [];
+
+        thoughtEl.hidden = !entries.length;
+        thoughtEl.innerHTML = entries.map(([name, value]) =>
+            '<div class="sb-thought-row">'
+            + (name ? '<span class="sb-thought-name">' + esc(name) + '</span>' : '')
+            + '<span class="sb-thought-text">' + esc(String(value)) + '</span>'
+            + '</div>',
+        ).join('');
+    }
+
     const bodyEl = el.querySelector('.sb-float-body');
 
     if (!editing) {
         const groups = viewChars
             .map(([name, charData]) => {
-                let fields = s.fields.filter(field => charData[field.key] !== undefined);
+                const dynKeys = dynamicKeysFor(name);
+                let fields = fieldsFor(name).filter(field => charData[field.key] !== undefined || dynKeys.has(field.key));
 
                 if (brief) {
                     fields = fields.filter(field => field.inline);
@@ -2103,9 +2500,34 @@ function scheduleRefresh(delay = 60) {
    ============================================================ */
 
 /** 组装最终注入文本 */
+/** 当前剧情命中的条件方案 → 给模型的一句提示 */
+function activeTemplateHint() {
+    const ids = new Set(Object.values(store()?.dynamic ?? {}).flat());
+
+    if (!ids.size) {
+        return '';
+    }
+
+    const names = [...ids]
+        .map(id => FIELD_TEMPLATES.find(tpl => tpl.id === id)?.name)
+        .filter(Boolean);
+
+    return names.length
+        ? `\n\n当前剧情涉及：${names.join('、')}。相关角色请补上对应字段（不确定就写「待定」）。`
+        : '';
+}
+
+/** 提示词里的「内心想法」段，关掉开关时整段移除 */
+const THOUGHT_SECTION_RE = /内心想法（先输出）：[\s\S]*?不要和状态块写在同一行。\n\n/;
+
 function buildPrompt() {
     const s = settings();
-    const template = String(s.prompt || DEFAULT_PROMPT);
+    let template = String(s.prompt || DEFAULT_PROMPT);
+
+    if (s.display.showThought === false) {
+        template = template.replace(THOUGHT_SECTION_RE, '');
+    }
+
     const fields = describeFields(s.fields);
 
     if (!fields) {
@@ -2115,6 +2537,13 @@ function buildPrompt() {
     let text = template
         .replace(/\{\{fields\}\}/g, fields)
         .replace(/\{\{example\}\}/g, buildExample(s.fields));
+
+    // 剧情命中了条件方案时，提醒模型补上对应字段
+    const dynamicHint = activeTemplateHint();
+
+    if (dynamicHint) {
+        text += dynamicHint;
+    }
 
     // 用户把占位符删了也要把字段清单带上，否则模型不知道输出什么
     if (!template.includes('{{fields}}')) {
@@ -2221,6 +2650,7 @@ function panelHtml() {
         <label class="sb-chk sb-chk--block"><input type="checkbox" id="sb-auto-fields"> 自动识别新字段（模型多给的键自动建成字段）</label>
         <label class="sb-chk sb-chk--block"><input type="checkbox" id="sb-snap-edge"> 悬浮球贴边吸附</label>
         <label class="sb-chk sb-chk--block"><input type="checkbox" id="sb-detect-chars"> 从正文自动识别出场人物（自动补占位状态）</label>
+        <label class="sb-chk sb-chk--block"><input type="checkbox" id="sb-show-thought"> 显示内心想法（面板顶部固定区，要求模型先输出 &lt;thought&gt;）</label>
         <div class="sb-row" style="margin-top:-2px">
             <button type="button" class="sb-btn" id="sb-reset-pos">重置球 / 窗口位置</button>
         </div>
@@ -2290,7 +2720,7 @@ function panelHtml() {
 
 /** 把字段列表渲染进指定容器（悬浮窗编辑模式用） */
 function renderFieldListInto(container) {
-    const fields = settings().fields;
+    const fields = currentBoard(false);
     container.innerHTML = fields.map((field, index) => fieldRowHtml(field, index, fields.length)).join('');
 }
 
@@ -2311,7 +2741,7 @@ function applyTemplate(id, root) {
         return;
     }
 
-    const current = settings().fields;
+    const current = currentBoard(false);
     const missing = tpl.fields.filter(field => !current.some(have => have.key === field.key));
 
     let fields;
@@ -2336,8 +2766,7 @@ function applyTemplate(id, root) {
             : [...current, ...missing.map(field => ({ ...field }))];
     }
 
-    settings().fields = fields;
-    saveSettingsDebounced();
+    commitBoard(fields);
     refreshFieldUI(root);
     scheduleRefresh(120);
     notify('success', `已套用「${tpl.name}」方案`);
@@ -2349,7 +2778,7 @@ let iconPickerIndex = -1;
 /** 打开图标选择器，按语义分组列出 */
 function openIconPicker(index) {
     const picker = floatElement()?.querySelector('.sb-icon-picker');
-    const field = settings().fields[index];
+    const field = currentBoard(false)[index];
 
     if (!picker || !field) {
         return;
@@ -2394,6 +2823,44 @@ function closeIconPicker() {
  */
 function bindFieldEvents(root) {
     root.addEventListener('click', event => {
+        // 字段板切换
+        const boardTab = event.target.closest('.sb-board-tab[data-board]');
+        if (boardTab) {
+            editingBoard = boardTab.dataset.board || '';
+
+            // 点了角色标签但还没专属板：立刻从默认板拷一份，给个明确反馈
+            if (editingBoard) {
+                const s2 = settings();
+                s2.display.charBoards = s2.display.charBoards ?? {};
+
+                if (!Array.isArray(s2.display.charBoards[editingBoard])) {
+                    s2.display.charBoards[editingBoard] = structuredClone(s2.fields);
+                    saveSettingsDebounced();
+                    notify('info', `已为「${editingBoard}」建立专属字段板`);
+                }
+            }
+
+            refreshFieldUI(root);
+            return;
+        }
+
+        // 删除角色专属板
+        const delBoard = event.target.closest('[data-del-board]');
+        if (delBoard) {
+            const name = delBoard.dataset.delBoard;
+            if (!window.confirm(`删除「${name}」的专属字段板？之后这个角色走默认板。`)) {
+                return;
+            }
+            delete settings().display.charBoards[name];
+            if (editingBoard === name) {
+                editingBoard = '';
+            }
+            saveSettingsDebounced();
+            refreshFieldUI(root);
+            scheduleRefresh(120);
+            return;
+        }
+
         // 方案按钮
         const tplBtn = event.target.closest('.sb-tpl[data-tpl]');
         if (tplBtn) {
@@ -2453,9 +2920,32 @@ function bindFieldEvents(root) {
                 openIconPicker(index);
                 return;
             }
+            case 'addchar': {
+                const input = window.prompt('为哪个角色建专属字段板？\n角色名要和状态栏里显示的保持一致（中文）。', '');
+
+                const name = String(input ?? '').trim();
+
+                if (!name) {
+                    return;
+                }
+
+                const bag2 = settings();
+                bag2.display.charBoards = bag2.display.charBoards ?? {};
+
+                if (!Array.isArray(bag2.display.charBoards[name])) {
+                    bag2.display.charBoards[name] = structuredClone(bag2.fields);
+                }
+
+                editingBoard = name;
+                saveSettingsDebounced();
+                refreshFieldUI(root);
+                scheduleRefresh(120);
+                notify('success', `已为「${name}」建立专属字段板`);
+                return;
+            }
             case 'addfield': {
                 // 任意自定义字段：带一套默认值建好，自动展开高级项并聚焦显示名
-                const list = settings().fields;
+                const list = currentBoard(true);
                 list.push({
                     key: `custom${list.length + 1}`,
                     label: `自定义${list.length + 1}`,
@@ -2518,7 +3008,7 @@ function bindFieldEvents(root) {
             return;
         }
 
-        const field = settings().fields[Number(row.dataset.idx)];
+        const field = currentBoard(false)[Number(row.dataset.idx)];
         if (!field) {
             return;
         }
@@ -2548,7 +3038,7 @@ function bindFieldEvents(root) {
             return;
         }
 
-        const field = settings().fields[Number(row.dataset.idx)];
+        const field = currentBoard(false)[Number(row.dataset.idx)];
         if (!field) {
             return;
         }
@@ -2574,7 +3064,29 @@ function bindFieldEvents(root) {
 }
 
 /** 字段编辑器内容重绘（编辑模式下） */
+/** 字段板上方那排：默认板 + 各角色专属板 */
+function renderBoardsInto(container) {
+    const s = settings();
+    const boards = s.display.charBoards ?? {};
+    const saved = Object.keys(boards).filter(name => name && Array.isArray(boards[name]) && boards[name].length);
+    const live = Object.keys(store()?.current ?? {}).filter(Boolean);
+    const names = [...new Set([...live, ...saved])];
+
+    container.innerHTML = `<button type="button" class="sb-board-tab${editingBoard === '' ? ' is-active' : ''}" data-board="">默认板</button>`
+        + names.map(name => `<span class="sb-board-slot">`
+            + `<button type="button" class="sb-board-tab${editingBoard === name ? ' is-active' : ''}" data-board="${escAttr(name)}">${esc(name)}${saved.includes(name) ? '' : ' ·'}</button>`
+            + (saved.includes(name)
+                ? `<button type="button" class="sb-board-x" data-del-board="${escAttr(name)}" title="删除该角色板，回到默认板">×</button>`
+                : '')
+            + '</span>').join('');
+}
+
 function refreshFieldUI(root) {
+    const boards = root.querySelector('[data-role="boards"]');
+    if (boards) {
+        renderBoardsInto(boards);
+    }
+
     const list = root.querySelector('[data-role="list"]');
     if (list) {
         renderFieldListInto(list);
@@ -2599,6 +3111,7 @@ function syncControls() {
     setChecked('sb-auto-fields', s.display.autoAddFields);
     setChecked('sb-snap-edge', s.display.snapEdge !== false);
     setChecked('sb-detect-chars', s.display.autoDetectChars !== false);
+    setChecked('sb-show-thought', s.display.showThought !== false);
 
     const promptEl = document.getElementById('sb-prompt');
     if (promptEl) {
@@ -2655,6 +3168,7 @@ function bindPanel(root) {
         ['sb-auto-fields', () => settings().display.autoAddFields, value => { settings().display.autoAddFields = value; }],
         ['sb-snap-edge', () => settings().display.snapEdge !== false, value => { settings().display.snapEdge = value; }],
         ['sb-detect-chars', () => settings().display.autoDetectChars !== false, value => { settings().display.autoDetectChars = value; }],
+        ['sb-show-thought', () => settings().display.showThought !== false, value => { settings().display.showThought = value; }],
     ];
 
     for (const [id, , apply] of flags) {
@@ -3004,7 +3518,7 @@ async function onMessageReceived(msgId, type) {
         return;
     }
 
-    await commit(parsed, msgId, msg.mes);
+    await commit(parsed, msgId, msg.mes, msg.extra?.[THOUGHT_KEY] ?? null);
     // 不赌 RENDERED 事件的先后：收到消息就立刻把简洁条对齐
     renderAllInline();
     renderFloat();

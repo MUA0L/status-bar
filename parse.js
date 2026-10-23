@@ -128,6 +128,9 @@ export function normalizeField(raw) {
         ttl: raw.ttl === true,
         // 用户手动加的字段：方案替换 / 恢复默认时不许被抹掉
         custom: raw.custom === true,
+        // 条件方案自动挂上来的标记：不再命中时会被自动移除
+        auto: raw.auto === true,
+        fromTemplate: typeof raw.fromTemplate === 'string' ? raw.fromTemplate : undefined,
         dynamic,
     };
 }
