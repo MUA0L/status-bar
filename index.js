@@ -455,7 +455,7 @@ const DEFAULT_PROMPT = `[状态栏要求 · 每条回复都必须执行]
 场景没变化也要输出当前状态；漏掉会让状态栏停留在旧数据。
 
 内心想法（先输出）：
-先输出内心想法 —— 场上每个角色各一条，按角色名分组；外层是角色名，内层是一两句第一人称的念头（不写旁白）。
+先输出内心想法 —— 场上每个角色各一条，按角色名分组；外层是角色名，内层是第一人称的念头（不写旁白），每条控制在 {{thoughtLimit}}。
 格式：
 <thought>
 {"角色甲":"此刻的念头","角色乙":"此刻的念头"}
@@ -527,6 +527,15 @@ const DEFAULT_DISPLAY = {
 
     /** 是否显示/要求「内心想法」（面板顶部固定区） */
     showThought: true,
+
+    /** 每角色内心想法的字数上限（0 = 不限）；只约束模型输出，界面永远完整显示 */
+    thoughtLimit: 60,
+
+    /**
+     * 按角色卡缓存的字段板：{ 卡id: { fields, charBoards } }。
+     * 换角色卡时自动切到对应配置，没有记录就用出厂默认。属于本机偏好，不随配置导出。
+     */
+    perCardBoards: {},
     /** 悬浮窗坐标 { left, top }；null 表示跟随悬浮球。属于本机偏好，不随配置导出 */
     floatPos: null,
     /** 悬浮球坐标 { left, top }；null 表示用 CSS 默认位置。属于本机偏好，不随配置导出 */
@@ -1000,6 +1009,54 @@ function allKnownFields() {
     }
 
     return [...map.values()];
+}
+
+/** 当前字段板绑定的角色卡 id（avatar 或群组 id） */
+let boardsCardId = '';
+
+/**
+ * 把字段板绑定到当前角色卡。
+ *
+ * 每张卡各存一份「默认板 + 角色专属板」：切卡先把旧卡存下来，
+ * 再加载新卡；新卡没有记录就退回出厂默认 —— 换卡即全默认。
+ */
+function bindBoardsToCard() {
+    const cardId = getContext()?.characterId ?? '';
+
+    if (cardId === boardsCardId) {
+        return;
+    }
+
+    const s = settings();
+    s.display.perCardBoards = s.display.perCardBoards ?? {};
+
+    // 旧卡的配置先落袋
+    if (boardsCardId) {
+        s.display.perCardBoards[boardsCardId] = {
+            fields: structuredClone(s.fields),
+            charBoards: structuredClone(s.display.charBoards ?? {}),
+        };
+    }
+
+    boardsCardId = cardId;
+
+    if (!cardId) {
+        return;
+    }
+
+    const saved = s.display.perCardBoards[cardId];
+
+    if (saved && Array.isArray(saved.fields) && saved.fields.length) {
+        s.fields = normalizeFieldList(saved.fields);
+        s.display.charBoards = saved.charBoards ?? {};
+    } else {
+        // 从没见过这张卡 → 全部出厂默认
+        s.fields = structuredClone(DEFAULT_FIELDS);
+        s.display.charBoards = {};
+    }
+
+    saveSettingsDebounced();
+    scheduleRefresh(220);
 }
 
 /** 编辑器当前编辑的字段板：'' = 默认板，否则角色名 */
@@ -1557,6 +1614,11 @@ function renderInline(msgId) {
         const bagData = messageData(msgId);
 
         if (latestOk && bagData) {
+            const thoughtBag = store();
+            const thoughtsOf = thoughtBag?.thoughts
+                ?? (thoughtBag?.thought ? { '': thoughtBag.thought } : {});
+            const showThoughtInInline = s.display.showThought !== false;
+
             // 每个角色一行；单人的角色名是空串，不渲染名字
             const rows = Object.entries(bagData)
                 .map(([name, charData]) => {
@@ -1575,7 +1637,12 @@ function renderInline(msgId) {
                     )).join('');
 
                     // 有角色名时走两列栅格（名字一列、数值一列），单人则整行铺满
-                    return `<div class="sb-inline-row${name ? '' : ' is-solo'}">${nameHtml}<span class="sb-inline-chips">${chips}</span></div>`;
+                    const thought = showThoughtInInline ? String(thoughtsOf[name] ?? '').trim() : '';
+                    const thoughtHtml = thought
+                        ? `<div class="sb-inline-thought"><i class="fa-solid fa-comment-dots" aria-hidden="true"></i>${esc(thought)}</div>`
+                        : '';
+
+                    return `<div class="sb-inline-row${name ? '' : ' is-solo'}">${nameHtml}<span class="sb-inline-chips">${chips}</span></div>${thoughtHtml}`;
                 })
                 .filter(Boolean);
 
@@ -2410,9 +2477,9 @@ function renderFloat() {
 
         thoughtEl.hidden = !entries.length;
         thoughtEl.innerHTML = entries.map(([name, value]) =>
-            '<div class="sb-thought-row">'
-            + (name ? '<span class="sb-thought-name">' + esc(name) + '</span>' : '')
-            + '<span class="sb-thought-text">' + esc(String(value)) + '</span>'
+            '<div class="sb-thought-item">'
+            + (name ? '<div class="sb-thought-name">' + esc(name) + '</div>' : '')
+            + '<div class="sb-thought-text">' + esc(String(value)) + '</div>'
             + '</div>',
         ).join('');
     }
@@ -2484,6 +2551,11 @@ function renderFloat() {
    ============================================================ */
 
 function refreshAll() {
+    // 首次进来先把字段板认领到当前角色卡，之后切卡才有「旧卡」可存
+    if (!boardsCardId) {
+        boardsCardId = getContext()?.characterId ?? '';
+    }
+
     mountBall();
     mountFloat();
     renderFloat();
@@ -2526,6 +2598,13 @@ function buildPrompt() {
 
     if (s.display.showThought === false) {
         template = template.replace(THOUGHT_SECTION_RE, '');
+    } else {
+        const limit = Number(s.display.thoughtLimit);
+
+        template = template.replace(
+            /\{\{thoughtLimit\}\}/g,
+            Number.isFinite(limit) && limit > 0 ? `${limit} 字以内` : '两句以内',
+        );
     }
 
     const fields = describeFields(s.fields);
@@ -2651,6 +2730,9 @@ function panelHtml() {
         <label class="sb-chk sb-chk--block"><input type="checkbox" id="sb-snap-edge"> 悬浮球贴边吸附</label>
         <label class="sb-chk sb-chk--block"><input type="checkbox" id="sb-detect-chars"> 从正文自动识别出场人物（自动补占位状态）</label>
         <label class="sb-chk sb-chk--block"><input type="checkbox" id="sb-show-thought"> 显示内心想法（面板顶部固定区，要求模型先输出 &lt;thought&gt;）</label>
+        <label class="sb-chk sb-chk--block">内心想法字数上限
+            <input type="number" id="sb-thought-limit" class="sb-num" min="0" max="500" step="10"> 字（0 = 不限，只约束模型输出，界面总是完整显示）
+        </label>
         <div class="sb-row" style="margin-top:-2px">
             <button type="button" class="sb-btn" id="sb-reset-pos">重置球 / 窗口位置</button>
         </div>
@@ -3113,6 +3195,12 @@ function syncControls() {
     setChecked('sb-detect-chars', s.display.autoDetectChars !== false);
     setChecked('sb-show-thought', s.display.showThought !== false);
 
+    const limitInput = document.getElementById('sb-thought-limit');
+
+    if (limitInput) {
+        limitInput.value = String(s.display.thoughtLimit ?? 60);
+    }
+
     const promptEl = document.getElementById('sb-prompt');
     if (promptEl) {
         promptEl.value = s.prompt;
@@ -3170,6 +3258,17 @@ function bindPanel(root) {
         ['sb-detect-chars', () => settings().display.autoDetectChars !== false, value => { settings().display.autoDetectChars = value; }],
         ['sb-show-thought', () => settings().display.showThought !== false, value => { settings().display.showThought = value; }],
     ];
+
+    const thoughtLimitEl = document.getElementById('sb-thought-limit');
+
+    if (thoughtLimitEl) {
+        thoughtLimitEl.addEventListener('change', () => {
+            const raw = Number(thoughtLimitEl.value);
+            settings().display.thoughtLimit = Number.isFinite(raw) ? Math.max(0, Math.min(500, Math.round(raw))) : 60;
+            saveSettingsDebounced();
+            scheduleRefresh(140);
+        });
+    }
 
     for (const [id, , apply] of flags) {
         const el = document.getElementById(id);
@@ -3683,7 +3782,15 @@ function bindEvents() {
     eventSource.on(event_types.MESSAGE_EDITED, onMessageEdited);
     eventSource.on(event_types.MESSAGE_SWIPED, onMessageSwiped);
     eventSource.on(event_types.MESSAGE_DELETED, onMessageDeleted);
-    eventSource.on(event_types.CHAT_CHANGED, onChatChanged);
+    eventSource.on(event_types.CHAT_CHANGED, () => {
+        try {
+            bindBoardsToCard();
+        } catch (err) {
+            console.warn('[status-bar] 切换角色卡失败', err);
+        }
+
+        return onChatChanged();
+    });
 
     // 每次生成前重刷注入：字段可能刚被改过，chat 也可能刚切换
     eventSource.on(event_types.GENERATION_AFTER_COMMANDS, injectPrompt);
