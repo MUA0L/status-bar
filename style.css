@@ -1252,3 +1252,172 @@ select.sb-inp {
     color: inherit;
     font-size: 0.95em;
 }
+
+
+/* ============================================================
+ * 卡片化（与 Tavo 版统一）
+ * ============================================================ */
+
+.sb-card {
+    padding: 11px 13px 13px;
+    border: 1px solid var(--sb-line);
+    border-radius: 16px;
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015));
+    animation: sb-card-in 0.24s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.sb-card + .sb-card {
+    margin-top: 9px;
+}
+
+@keyframes sb-card-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: none; }
+}
+
+.sb-card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 9px;
+}
+
+.sb-avatar {
+    flex: 0 0 auto;
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: hsl(var(--tone, 210) 62% 58% / 0.22);
+    color: hsl(var(--tone, 210) 74% 74%);
+    font-size: 0.78em;
+    font-weight: 600;
+}
+
+.sb-card-name {
+    font-size: 0.92em;
+    font-weight: 600;
+}
+
+.sb-mood {
+    margin-left: auto;
+    padding: 1px 9px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--sb-accent) 16%, transparent);
+    color: var(--sb-accent);
+    font-size: 0.74em;
+    max-width: 42%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sb-card-head .sb-mood + .sb-hero {
+    margin-left: 6px;
+}
+
+.sb-hero {
+    flex: 0 0 auto;
+    margin-left: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+}
+
+.sb-ring {
+    --pct: 0;
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    position: relative;
+    background: conic-gradient(var(--sb-accent) calc(var(--pct) * 1%), rgba(128, 128, 128, 0.18) 0);
+}
+
+.sb-ring::after {
+    content: "";
+    position: absolute;
+    inset: 4px;
+    border-radius: 50%;
+    background: var(--sb-panel, #1b1b20);
+}
+
+.sb-ring-num {
+    position: relative;
+    z-index: 1;
+    font-size: 0.8em;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.sb-ring.is-low {
+    background: conic-gradient(var(--sb-danger, #f7768e) calc(var(--pct) * 1%), rgba(128, 128, 128, 0.18) 0);
+}
+
+.sb-ring.is-mid {
+    background: conic-gradient(var(--sb-warn, #e0af68) calc(var(--pct) * 1%), rgba(128, 128, 128, 0.18) 0);
+}
+
+.sb-hero-label {
+    font-size: 0.66em;
+    color: var(--sb-dim);
+    white-space: nowrap;
+}
+
+.sb-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+.sb-group-title {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 4px;
+    font-size: 0.7em;
+    font-weight: 600;
+    color: var(--sb-dim);
+    opacity: 0.9;
+}
+
+.sb-group-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--dot, var(--sb-dim));
+}
+
+/* 经历 */
+
+.sb-acts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.sb-act {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 8px;
+    background: rgba(128, 128, 128, 0.12);
+    font-size: 0.78em;
+}
+
+.sb-act-count {
+    color: var(--sb-dim);
+    font-variant-numeric: tabular-nums;
+}
+
+.sb-act-level {
+    padding: 0 4px;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--tone, var(--sb-accent)) 20%, transparent);
+    color: var(--tone, var(--sb-accent));
+    font-size: 0.9em;
+}

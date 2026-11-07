@@ -304,6 +304,210 @@ function matchMoodIcon(text) {
  * fa-sword / fa-bow-arrow 这类是 Pro 图标，Free 版渲染为空，不要放进来。
  * 想用库外的图标照样可以在输入框里手填类名。
  */
+/**
+ * 字段语义分组：卡片里按组显示，有值的组才出现。
+ */
+const FIELD_GROUPS = [
+    { id: 'scene', label: '场景', keys: ['time', 'location', 'date', 'weather', 'outfit', 'round'] },
+    { id: 'body', label: '身体', keys: ['stamina', 'fatigue', 'hunger', 'thirst', 'sleep', 'temperature', 'pain', 'weight', 'hp', 'mp', 'armor'] },
+    { id: 'cycle', label: '周期', keys: ['cyclePhase', 'cycleDay', 'fertility', 'nextCycle', 'flow', 'cramp'] },
+    { id: 'pregnancy', label: '孕期', keys: ['pregnancyWeek', 'dueDate', 'fetusState', 'symptom', 'bellyMeasure', 'fetalMove', 'milkVolume', 'womb'] },
+    { id: 'intimate', label: '亲密', keys: ['desire', 'sensitivity', 'composure', 'reaction', 'restraint'] },
+    { id: 'acts', label: '经历', keys: ['acts', 'actsNote', 'skills', 'kinks'] },
+    { id: 'mind', label: '精神', keys: ['sanity', 'stress', 'fear', 'mindNote'] },
+    { id: 'social', label: '人际', keys: ['reputation', 'trust', 'faction', 'suspicion', 'relation'] },
+    { id: 'injury', label: '伤势', keys: ['wound', 'severity', 'bleeding', 'treatment', 'healTime', 'states', 'buffs'] },
+];
+
+const GROUP_DOT = {
+    scene: '#8ab4ff', body: '#a6d189', cycle: '#f5a97f', pregnancy: '#f0a8c0',
+    intimate: '#c6a0f6', acts: '#f0a8c0', mind: '#8ab4f0', social: '#eed49f', injury: '#ed8796',
+    other: '#98a0aa',
+};
+
+/** 名字散列成色相，给头像上色 */
+function avatarTone(name) {
+    let hash = 0;
+    const text = String(name ?? '');
+
+    for (let i = 0; i < text.length; i += 1) {
+        hash = (hash * 31 + text.charCodeAt(i)) % 360;
+    }
+
+    return hash;
+}
+
+/** 主视觉：优先挑一个 100 制数值做环形 */
+function heroOf(keys, values) {
+    const preferred = ['affection', 'desire', 'stamina', 'trust', 'hp'];
+
+    for (const key of preferred) {
+        const num = Number(values[key]);
+
+        if (keys.includes(key) && Number.isFinite(num)) {
+            return { key, value: num };
+        }
+    }
+
+    for (const key of keys) {
+        const num = Number(values[key]);
+
+        if (Number.isFinite(num) && num >= 0 && num <= 100 && !/day|week/i.test(key)) {
+            return { key, value: num };
+        }
+    }
+
+    return null;
+}
+
+function ringHtml(value, label) {
+    const pct = Math.max(0, Math.min(100, value));
+    const level = pct <= 25 ? ' is-low' : (pct <= 50 ? ' is-mid' : '');
+
+    return '<div class="sb-hero">'
+        + '<div class="sb-ring' + level + '" style="--pct: ' + pct + '">'
+        + '<span class="sb-ring-num">' + Math.round(value) + '</span></div>'
+        + '<span class="sb-hero-label">' + esc(label) + '</span></div>';
+}
+
+/** 经历：解析成 [{name,count}] */
+function parseActs(raw) {
+    const out = [];
+
+    if (!raw) {
+        return out;
+    }
+
+    const push = (name, count) => {
+        const label = String(name ?? '').trim();
+
+        if (label) {
+            out.push({ name: label, count: Number(count) || 0 });
+        }
+    };
+
+    if (Array.isArray(raw)) {
+        for (const item of raw) {
+            if (item && typeof item === 'object') {
+                push(item.name ?? item.key, item.count ?? item.times);
+            } else {
+                const hit = String(item).match(/^(.+?)[\s×xX*]*\s*(\d+)?\s*次?$/);
+                if (hit) push(hit[1], hit[2] ?? 1);
+            }
+        }
+
+        return out;
+    }
+
+    if (typeof raw === 'object') {
+        for (const [name, count] of Object.entries(raw)) push(name, count);
+        return out;
+    }
+
+    for (const part of String(raw).split(/[,，、;；\n]+/)) {
+        const hit = part.trim().match(/^(.+?)[\s×xX*]*\s*(\d+)?\s*次?$/);
+        if (hit) push(hit[1], hit[2] ?? 1);
+    }
+
+    return out;
+}
+
+function skillLevel(count) {
+    const n = Number(count) || 0;
+
+    if (n >= 25) return { label: '烙印', tone: '#ed8796' };
+    if (n >= 10) return { label: '沉溺', tone: '#c6a0f6' };
+    if (n >= 3) return { label: '熟悉', tone: '#8ab4f8' };
+    return { label: '初尝', tone: '#a6d189' };
+}
+
+function actsHtml(raw) {
+    const items = parseActs(raw);
+
+    if (!items.length) {
+        return '';
+    }
+
+    const chips = items.map(item => {
+        const level = skillLevel(item.count);
+
+        return '<span class="sb-act"><span class="sb-act-name">' + esc(item.name) + '</span>'
+            + '<span class="sb-act-count">×' + item.count + '</span>'
+            + '<span class="sb-act-level" style="--tone:' + level.tone + '">' + level.label + '</span></span>';
+    }).join('');
+
+    return '<div class="sb-group"><div class="sb-group-title">'
+        + '<span class="sb-group-dot" style="--dot:#f0a8c0"></span>经历</div>'
+        + '<div class="sb-acts">' + chips + '</div></div>';
+}
+
+/** 单个角色渲染成一张卡片 */
+function charCardHtml(name, charData, fields) {
+    const values = charData ?? {};
+    const keys = fields.filter(field => values[field.key] !== undefined).map(field => field.key);
+
+    const tone = avatarTone(name);
+    const initial = name ? name.slice(0, 1) : '·';
+    const moodKey = keys.includes('mood') ? 'mood' : null;
+    const mood = moodKey ? String(values[moodKey]) : '';
+    const hero = heroOf(keys.filter(key => key !== 'acts'), values);
+    const heroKey = hero ? hero.key : '';
+
+    const grouped = [];
+    const claimed = new Set();
+
+    for (const group of FIELD_GROUPS) {
+        const groupKeys = keys.filter(key => group.keys.includes(key) && key !== heroKey);
+
+        if (!groupKeys.length) {
+            continue;
+        }
+
+        groupKeys.forEach(key => claimed.add(key));
+        grouped.push({ id: group.id, label: group.label, keys: groupKeys });
+    }
+
+    const leftovers = keys.filter(key => !claimed.has(key) && key !== heroKey && key !== moodKey);
+
+    if (leftovers.length) {
+        grouped.push({ id: 'other', label: '', keys: leftovers });
+    }
+
+    const groupsHtml = grouped.map(group => {
+        if (group.id === 'acts') {
+            return actsHtml(values.acts);
+        }
+
+        const items = group.keys
+            .map(key => itemHtml(fields.find(field => field.key === key), values[key]))
+            .filter(Boolean)
+            .join('');
+
+        if (!items) {
+            return '';
+        }
+
+        const title = group.label
+            ? '<div class="sb-group-title"><span class="sb-group-dot" style="--dot:'
+                + (GROUP_DOT[group.id] ?? GROUP_DOT.other) + '"></span>' + group.label + '</div>'
+            : '';
+
+        return '<div class="sb-group">' + title + '<div class="sb-char-grid">' + items + '</div></div>';
+    }).join('');
+
+    const heroLabel = hero ? ((fields.find(f => f.key === heroKey) || {}).label ?? heroKey) : '';
+
+    return '<div class="sb-card">'
+        + '<div class="sb-card-head">'
+        + '<span class="sb-avatar" style="--tone:' + tone + '">' + esc(initial) + '</span>'
+        + '<span class="sb-card-name">' + esc(name || '状态') + '</span>'
+        + (mood ? '<span class="sb-mood">' + esc(mood) + '</span>' : '')
+        + (hero ? ringHtml(hero.value, heroLabel) : '')
+        + '</div>'
+        + '<div class="sb-groups">' + (groupsHtml || '<div class="sb-item sb-item--empty">—</div>') + '</div>'
+        + '</div>';
+}
+
 const ICON_GROUPS = [
     {
         name: '时间',
@@ -2506,10 +2710,7 @@ function renderFloat() {
                         + '<div class="sb-char-pending">状态待定 · 等下一轮更新</div></div>';
                 }
 
-                const head = name ? `<div class="sb-char-head">${esc(name)}</div>` : '';
-                const items = fields.map(field => itemHtml(field, charData[field.key])).join('');
-
-                return `<div class="sb-char-group">${head}<div class="sb-char-grid">${items}</div></div>`;
+                return charCardHtml(name, charData, fields);
             })
             .filter(Boolean)
             .join('');
