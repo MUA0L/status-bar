@@ -1242,7 +1242,7 @@ select.sb-inp {
 }
 
 /* 设置面板里的小数字输入框 */
-.sb-num {
+.sb-num-input {
     width: 62px;
     margin: 0 4px;
     padding: 2px 6px;

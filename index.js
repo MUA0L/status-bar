@@ -54,6 +54,8 @@ import {
     normalizeFieldList,
     sampleValue,
 } from './parse.js';
+let lastStamp = '';
+let archiveMode = false;
 
 /* ============================================================
    常量
@@ -319,6 +321,50 @@ const FIELD_GROUPS = [
     { id: 'injury', label: '伤势', keys: ['wound', 'severity', 'bleeding', 'treatment', 'healTime', 'states', 'buffs'] },
 ];
 
+/** 模型给的字段可能不在字段配置里，这里给中文名兜底 */
+const CN_LABELS = {
+    time: '时间', location: '地点', mood: '心情', affection: '好感', stamina: '体力',
+    fatigue: '疲劳', hunger: '饥饿', thirst: '口渴', sleep: '睡眠', temperature: '体温',
+    pain: '疼痛', weight: '体重', hp: '生命', mp: '魔力', armor: '护甲', round: '回合',
+    cyclePhase: '周期阶段', cycleDay: '经期第几天', fertility: '受孕几率', nextCycle: '距下次',
+    flow: '经量', cramp: '腰腹不适', pregnancyWeek: '孕周', dueDate: '预产期',
+    fetusState: '胎儿状态', symptom: '孕期反应', bellyMeasure: '腹围', fetalMove: '胎动',
+    milkVolume: '母乳量', womb: '体内', desire: '情欲', sensitivity: '敏感',
+    composure: '理智', restraint: '克制', reaction: '反应', sanity: '理智',
+    stress: '压力', fear: '恐惧', mindNote: '心理', reputation: '声望', trust: '信任',
+    faction: '阵营', suspicion: '猜疑', wound: '伤处', severity: '严重度',
+    bleeding: '出血', treatment: '处理', healTime: '恢复', outfit: '服装',
+    relation: '关系', date: '日期', weather: '天气', states: '状态', buffs: '增益',
+};
+
+const BAR_KEYS = /affection|stamina|fatigue|hunger|thirst|desire|sensitivity|composure|restraint|sanity|stress|fear|reputation|trust|suspicion|severity|bleeding|hp|mp|armor|milkVolume|cramp|pain/i;
+
+/** 取字段定义：优先用配置里的，没有就按值类型猜一个 */
+function fieldOf(key, values, fields) {
+    const configured = (fields ?? []).find(field => field.key === key);
+
+    if (configured) {
+        return configured;
+    }
+
+    const value = values[key];
+    const label = CN_LABELS[key] ?? key;
+
+    if (Array.isArray(value)) {
+        return { key, label, type: 'tags', icon: '', max: 100 };
+    }
+
+    if (BAR_KEYS.test(key) && Number.isFinite(Number(value))) {
+        return { key, label, type: 'bar', icon: '', max: 100 };
+    }
+
+    if (typeof value === 'number') {
+        return { key, label, type: 'number', icon: '', max: 100 };
+    }
+
+    return { key, label, type: 'text', icon: '', max: 100 };
+}
+
 const GROUP_DOT = {
     scene: '#8ab4ff', body: '#a6d189', cycle: '#f5a97f', pregnancy: '#f0a8c0',
     intimate: '#c6a0f6', acts: '#f0a8c0', mind: '#8ab4f0', social: '#eed49f', injury: '#ed8796',
@@ -442,9 +488,14 @@ function actsHtml(raw) {
 }
 
 /** 单个角色渲染成一张卡片 */
-function charCardHtml(name, charData, fields) {
+function charCardHtml(name, charData, fields, onlyGroups) {
     const values = charData ?? {};
-    const keys = fields.filter(field => values[field.key] !== undefined).map(field => field.key);
+
+    // 以状态里的实际字段为准：模型多给的自定义字段也要显示
+    const keys = Object.keys(values).filter(key => {
+        const value = values[key];
+        return value !== undefined && value !== null && String(value).trim() !== '';
+    });
 
     const tone = avatarTone(name);
     const initial = name ? name.slice(0, 1) : '·';
@@ -457,6 +508,10 @@ function charCardHtml(name, charData, fields) {
     const claimed = new Set();
 
     for (const group of FIELD_GROUPS) {
+        if (Array.isArray(onlyGroups) && !onlyGroups.includes(group.id)) {
+            continue;
+        }
+
         const groupKeys = keys.filter(key => group.keys.includes(key) && key !== heroKey);
 
         if (!groupKeys.length) {
@@ -479,7 +534,10 @@ function charCardHtml(name, charData, fields) {
         }
 
         const items = group.keys
-            .map(key => itemHtml(fields.find(field => field.key === key), values[key]))
+            .map(key => {
+                const def = fieldOf(key, values, fields);
+                return def ? itemHtml(def, values[key]) : '';
+            })
             .filter(Boolean)
             .join('');
 
@@ -495,7 +553,7 @@ function charCardHtml(name, charData, fields) {
         return '<div class="sb-group">' + title + '<div class="sb-char-grid">' + items + '</div></div>';
     }).join('');
 
-    const heroLabel = hero ? ((fields.find(f => f.key === heroKey) || {}).label ?? heroKey) : '';
+    const heroLabel = hero ? fieldOf(heroKey, values, fields).label : '';
 
     return '<div class="sb-card">'
         + '<div class="sb-card-head">'
@@ -2323,7 +2381,7 @@ function mountFloat() {
             <span class="sb-float-title">状态</span>
             <span class="sb-float-badge" hidden></span>
             <span class="sb-float-tools">
-                <button type="button" class="sb-tool" data-act="settings" title="自定义字段" aria-label="自定义字段">
+                <button type="button" class="sb-tool" data-act="archive" title="档案视图" aria-label="档案视图"><i class="fa-solid fa-notes-medical" aria-hidden="true"></i></button><button type="button" class="sb-tool" data-act="settings" title="自定义字段" aria-label="自定义字段">
                     <i class="fa-solid fa-sliders" aria-hidden="true"></i>
                 </button>
                 <button type="button" class="sb-tool" data-act="history" title="历史快照" aria-label="历史快照">
@@ -2384,6 +2442,18 @@ function mountFloat() {
         event.stopPropagation();
         viewMsgId = null;
         renderFloat();
+    });
+
+    el.querySelector('.sb-tool[data-act="archive"]').addEventListener('click', event => {
+        event.stopPropagation();
+        archiveMode = !archiveMode;
+        lastStamp = '';
+
+        if (archiveMode) {
+            renderArchive();
+        } else {
+            renderFloat();
+        }
     });
 
     el.querySelector('.sb-tool[data-act="history"]').addEventListener('click', event => {
@@ -2572,6 +2642,25 @@ function setFloatPosition(left, top) {
 }
 
 /** 按保存的坐标摆放；没有坐标就交给 CSS 的 right/bottom 默认值 */
+const ARCHIVE_GROUPS = ['cycle', 'pregnancy', 'intimate', 'acts', 'mind'];
+
+/** 档案视图：每角色一张卡，只渲染生理相关分组 */
+function renderArchive() {
+    const el = floatElement();
+    const bodyEl = el.querySelector('.sb-float-body');
+    const bagData = currentData();
+    const names = Object.keys(bagData);
+
+    if (!names.length) {
+        bodyEl.innerHTML = '<div class="sb-item sb-item--empty">还没有档案数据</div>';
+        return;
+    }
+
+    bodyEl.innerHTML = names
+        .map(name => charCardHtml(name, bagData[name], fieldsFor(name), ARCHIVE_GROUPS))
+        .join('');
+}
+
 function renderFloat() {
     const el = floatElement();
     const ball = ballElement();
@@ -2932,7 +3021,7 @@ function panelHtml() {
         <label class="sb-chk sb-chk--block"><input type="checkbox" id="sb-detect-chars"> 从正文自动识别出场人物（自动补占位状态）</label>
         <label class="sb-chk sb-chk--block"><input type="checkbox" id="sb-show-thought"> 显示内心想法（面板顶部固定区，要求模型先输出 &lt;thought&gt;）</label>
         <label class="sb-chk sb-chk--block">内心想法字数上限
-            <input type="number" id="sb-thought-limit" class="sb-num" min="0" max="500" step="10"> 字（0 = 不限，只约束模型输出，界面总是完整显示）
+            <input type="number" id="sb-thought-limit" class="sb-num-input" min="0" max="500" step="10"> 字（0 = 不限，只约束模型输出，界面总是完整显示）
         </label>
         <div class="sb-row" style="margin-top:-2px">
             <button type="button" class="sb-btn" id="sb-reset-pos">重置球 / 窗口位置</button>
